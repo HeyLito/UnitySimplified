@@ -7,9 +7,9 @@ namespace UnitySimplifiedEditor
 {
     internal sealed class PopupInfo
     {
-        private int _controlID = 0;
         private EditorWindow _guiView = null;
-        private string _selected;
+        private int _controlID = 0;
+        private int _selected;
 
         public const string commandMessage = "CustomPopupMenuChanged";
         public static PopupInfo instance = null;
@@ -24,7 +24,7 @@ namespace UnitySimplifiedEditor
 
 
 
-        public static string GetValueForControl(int controlID, string selected)
+        public static int GetValueForControl(int controlID, int selected)
         {
             Event evt = Event.current;
             if (evt.type == EventType.ExecuteCommand && evt.commandName == commandMessage)
@@ -44,7 +44,7 @@ namespace UnitySimplifiedEditor
             }
             return selected;
         }
-        public void SetValueDelegate(string selected)
+        public void SetValueDelegate(int selected)
         {
             _selected = selected;
             if (_guiView != null)

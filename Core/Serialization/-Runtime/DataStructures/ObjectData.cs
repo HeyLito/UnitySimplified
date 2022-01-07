@@ -43,10 +43,10 @@ namespace UnitySimplified.Serialization
         /// Retrieves the type given from <see cref="assemblyQualifiedName"/>.
         /// </summary>
         /// <returns></returns>
-        public Type GetObjectType()
-        { return Type.GetType(assemblyQualifiedName); }
+        public Type GetDataType()
+        {   return Type.GetType(assemblyQualifiedName);   }
 
         public override string ToString()
-        { return $"{GetType().Name}({name})"; }
+        {   return $"{GetType().Name}({name})";   }
     }
 }

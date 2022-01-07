@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace UnitySimplified.Serialization
+namespace UnitySimplified
 {
     /// <summary>
     /// 
@@ -17,6 +17,8 @@ namespace UnitySimplified.Serialization
 
         public PriorityQueue()
         {   _dictionary = new SortedDictionary<TPriority, Queue<TElement>>(new DescendingComparer<TPriority>());   }
+        public PriorityQueue(IComparer<TPriority> comparer)
+        {   _dictionary = new SortedDictionary<TPriority, Queue<TElement>>(comparer);   }
 
         public int Count()
         {   return _count;   }
@@ -60,7 +62,7 @@ namespace UnitySimplified.Serialization
             return output;
         }
 
-        private class DescendingComparer<T> : IComparer<T> where T : IComparable
+        public class DescendingComparer<T> : IComparer<T> where T : IComparable
         {
             public int Compare(T x, T y)
             {   return y.CompareTo(x);   }

@@ -162,6 +162,18 @@ namespace UnitySimplified.Serialization
         /// <param name="fileFormat"></param>
         /// <returns></returns>
         public static bool CreateNewFile<T>(string fileName, T obj, FileFormat fileFormat)
+        {   return CreateNewFile(fileName, null, obj, fileFormat);   }
+
+        /// <summary>
+        /// Creates a new file from the object's data and inserts it into current loaded databases.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="fileName"></param>
+        /// <param name="obj"></param>
+        /// <param name="fileFormat"></param>
+        /// <param name="subPath"></param>
+        /// <returns></returns>
+        public static bool CreateNewFile<T>(string fileName, string subPath, T obj, FileFormat fileFormat)
         {
             if (_fileContainers.TryGetValue(fileFormat, out FileInfoContainer container)) { }
             else
@@ -173,6 +185,12 @@ namespace UnitySimplified.Serialization
             FileInfo fileInfo = new FileInfo(Path.Combine(TargetDataPath, fileName + container.fileExtension));
             if (Directory.Exists(fileInfo.Directory.FullName))
             {
+                if (!string.IsNullOrEmpty(subPath))
+                {
+                    fileInfo = new FileInfo(Path.Combine(TargetDataPath, subPath, fileName + container.fileExtension));
+                    if (!Directory.Exists(fileInfo.Directory.FullName))
+                        Directory.CreateDirectory(fileInfo.Directory.FullName);
+                }
                 if (!File.Exists(fileInfo.FullName))
                 {
                     switch (fileFormat)
@@ -376,7 +394,6 @@ namespace UnitySimplified.Serialization
             {
                 if (loadedFields[i].Attributes.HasFlag(FieldAttributes.NotSerialized)) 
                     continue;
-                //Debug.Log($"{loadedFields[i].Name} : {loadedFields[i].Attributes}");
                 object value = loadedFields[i].GetValue(loadedObject);
                 overwriteFields[i].SetValue(objectToOverwrite, value);
             }

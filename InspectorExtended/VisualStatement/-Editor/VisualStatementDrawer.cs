@@ -42,6 +42,7 @@ namespace UnitySimplifiedEditor
         private readonly Dictionary<string, ValueTuple<bool, ReorderableList>> _reorderableLists = new Dictionary<string, ValueTuple<bool, ReorderableList>>();
         private ReorderableList _targetList = null;
         private SerializedProperty _prop;
+        public static bool reinitialize = false;
         #endregion
 
         #region METHODS
@@ -56,21 +57,28 @@ namespace UnitySimplifiedEditor
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             Event evt = Event.current;
+            int controlID = GUIUtility.GetControlID(FocusType.Keyboard);
             _prop = property;
             _targetList = HandleListCollection(property);
             if (_targetList != null)
             {
                 _targetList.DoList(position);
-                if (evt.type == EventType.MouseDown)
-                    if (evt.button == 0 && !position.Contains(evt.mousePosition))
+                if (evt.GetTypeForControl(controlID) == EventType.MouseDown)
+                {
+                    if (evt.button == 0 && !new Rect(position.x, position.y, position.width, position.height - _targetList.footerHeight).Contains(evt.mousePosition))
+                    {
                         _targetList.draggable = _targetList.displayRemove = false;
+                        GUIUtility.keyboardControl = 0;
+                        GUI.changed = true;
+                    }
+                }
 
             }
         }
         #endregion
 
-        private void SetListToCollection(SerializedProperty property, ReorderableList list)
-        {   _reorderableLists[$"{property.serializedObject.targetObject.name}.{property.propertyPath}"] = (true, RecontructList(property));   }
+        private void SetListToCollection(SerializedProperty property)
+        {   reinitialize = true; _reorderableLists[$"{property.serializedObject.targetObject.name}.{property.propertyPath}"] = (true, RecontructList(property));   }
         private ReorderableList RecontructList(SerializedProperty property)
         {
             List<VisualStatementElement> visualElementList = CreateListOfElements(property);
@@ -98,7 +106,7 @@ namespace UnitySimplifiedEditor
                 else _reorderableLists[$"{property.serializedObject.targetObject.name}.{property.propertyPath}"] = (true, tuple.Item2);
                 list = tuple.Item2;
             }
-            else SetListToCollection(property, list);
+            else SetListToCollection(property);
 
             if (removeUnused)
             {
@@ -209,7 +217,7 @@ namespace UnitySimplifiedEditor
             _prop.serializedObject.ApplyModifiedProperties();
             _prop.serializedObject.Update();
 
-            SetListToCollection(_prop, RecontructList(_prop));
+            SetListToCollection(_prop);
         }
         private void SelectCallback(ReorderableList list)
         {
@@ -240,7 +248,7 @@ namespace UnitySimplifiedEditor
             _prop.serializedObject.ApplyModifiedProperties();
             _prop.serializedObject.Update();
 
-            SetListToCollection(_prop, RecontructList(_prop));
+            SetListToCollection(_prop);
         }
         private void RemoveCallback(ReorderableList list)
         {
@@ -325,6 +333,7 @@ namespace UnitySimplifiedEditor
                     }
                     break;
             }
+            reinitialize = false;
         }
         #endregion
         #endregion

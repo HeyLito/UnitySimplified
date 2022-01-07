@@ -13,8 +13,9 @@ namespace UnitySimplifiedEditor
     public class ConditionDrawer: PropertyDrawer
     {
         #region FIELDS
-        private RectOffset _border = new RectOffset(7, 7, 8, 12);
-        private int _spacing = 4;
+        private readonly RectOffset _border = new RectOffset(7, 7, 8, 12);
+        private readonly Dictionary<string, ValueTuple<bool, bool, SerializedProperty>> _validTargets = new Dictionary<string, (bool, bool, SerializedProperty)>();
+        private readonly int _spacing = 4;
         #endregion
 
         #region METHODS
@@ -23,7 +24,9 @@ namespace UnitySimplifiedEditor
         {   return base.GetPropertyHeight(property, label) * 3 + _border.top + _border.bottom + 12;   }
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            var condition = property.ExposeProperty(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic) as VisualStatement.Condition;
+            if (VisualStatementDrawer.reinitialize)
+                _validTargets.Clear();
+            VisualStatement.Condition condition = property.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement.Condition;
             if (condition == null)
                 return;
             var lhsProp = property.FindPropertyRelative("lhs");
@@ -33,18 +36,12 @@ namespace UnitySimplifiedEditor
             var lhsValuePath = lhsProp.FindPropertyRelative("valuePath").stringValue;
             var rhsValueReferenceType = (VisualStatement.Operand.ReferenceType)rhsProp.FindPropertyRelative("referenceType").enumValueIndex;
             var rhsValuePath = rhsProp.FindPropertyRelative("valuePath").stringValue;
-
-            GUIStyle boxHeaderStyle = new GUIStyle("RL Header");
-            GUIStyle boxBgStyle = new GUIStyle("RL Background");
-            GUIStyle elementBgStyle = new GUIStyle("RL Element");
-            GUIStyle operatorStyle = new GUIStyle(EditorStyles.popup) { alignment = TextAnchor.MiddleCenter };
-            
-            string[] operators = GetOperatorAsStrings(condition, operatorProp);
-
+            bool isValid = CheckIfTargetIsValid(property);
             int controlID = GUIUtility.GetControlID(FocusType.Keyboard);
             int indent = EditorGUI.indentLevel;
-            float operatorWidth = condition.IsValid() ? position.width * 0.05f + 35 : 0;
+            float operatorWidth = isValid ? position.width * 0.05f + 35 : 0;
             float labelWidth = (position.width - operatorWidth - _spacing) / 2;
+            string[] operators = GetOperatorAsStrings(condition, operatorProp, isValid);
 
             Rect boxHeaderRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight + 2);
             Rect boxBgRect = new Rect(boxHeaderRect.x, boxHeaderRect.y + boxHeaderRect.height, boxHeaderRect.width, EditorGUIUtility.singleLineHeight + boxHeaderRect.height + _border.top + _border.bottom);
@@ -52,6 +49,11 @@ namespace UnitySimplifiedEditor
             Rect lhsRect = new Rect(boxBgRect.x + _border.left, boxBgRect.y + _border.top, labelWidth - _border.left - _spacing / 2, EditorGUIUtility.singleLineHeight * 2);
             Rect operatorRect = new Rect(boxBgRect.x + labelWidth, boxBgRect.y + boxBgRect.height / 4, operatorWidth, EditorGUIUtility.singleLineHeight);
             Rect rhsRect = new Rect(boxBgRect.x + _spacing / 2 + labelWidth + operatorWidth, boxBgRect.y + _border.top, labelWidth - _border.left, EditorGUIUtility.singleLineHeight * 2);
+            
+            GUIStyle boxHeaderStyle = new GUIStyle("RL Header");
+            GUIStyle boxBgStyle = new GUIStyle("RL Background");
+            GUIStyle elementBgStyle = new GUIStyle("RL Element");
+            GUIStyle operatorStyle = new GUIStyle(EditorStyles.popup) { alignment = TextAnchor.MiddleCenter };
 
             EditorGUI.indentLevel = 0;
             EditorGUI.BeginProperty(boxHeaderRect, GUIContent.none, property);
@@ -62,7 +64,7 @@ namespace UnitySimplifiedEditor
             {
                 case EventType.Repaint:
                     Color color = GUI.backgroundColor;
-                    GUI.backgroundColor = !condition.IsValid() ? GUIUtility.keyboardControl == controlID ? new Color(1.75f, 0.01f, 0.01f, 1f) : new Color(1f, 0.65f, 0.65f, 1f) : color;
+                    GUI.backgroundColor = !isValid ? GUIUtility.keyboardControl == controlID ? new Color(1.75f, 0.01f, 0.01f, 1f) : new Color(1f, 0.65f, 0.65f, 1f) : color;
                     elementBgStyle.Draw(innerBoxBgRect, false, GUIUtility.keyboardControl == controlID, true, true);
                     GUI.backgroundColor = color;
                     break;
@@ -72,7 +74,10 @@ namespace UnitySimplifiedEditor
             EditorGUI.BeginChangeCheck();
             EditorGUI.PropertyField(lhsRect, lhsProp);
             if (EditorGUI.EndChangeCheck() || Event.current.commandName == PopupInfo.commandMessage)
+            {
                 HandleOperandChange((lhsProp, lhsValueReferenceType, lhsValuePath), rhsProp);
+                InitializeTargetValidation(property);
+            }
 
             EditorGUI.BeginChangeCheck();
             EditorGUI.BeginProperty(operatorRect, GUIContent.none, operatorProp);
@@ -84,13 +89,17 @@ namespace UnitySimplifiedEditor
                 operatorProp.enumValueIndex = popupIndex;
                 operatorProp.serializedObject.ApplyModifiedProperties();
                 operatorProp.serializedObject.Update();
+                InitializeTargetValidation(property);
             }
             EditorGUI.EndProperty();
 
             EditorGUI.BeginChangeCheck();
             EditorGUI.PropertyField(rhsRect, rhsProp);
             if (EditorGUI.EndChangeCheck() || Event.current.commandName == PopupInfo.commandMessage)
+            {
                 HandleOperandChange((rhsProp, rhsValueReferenceType, rhsValuePath), lhsProp);
+                InitializeTargetValidation(property);
+            }
 
             if (Event.current.type == EventType.MouseDown)
             {
@@ -104,6 +113,53 @@ namespace UnitySimplifiedEditor
         }
         #endregion
 
+        private bool CheckIfTargetIsValid(SerializedProperty property)
+        {
+            //if (_validTargets.TryGetValue(property.propertyPath, out (bool, bool, SerializedProperty) value))
+            //    return value.Item1;
+            //else return InitializeTargetValidation(property);
+
+            bool removeUnused = false;
+            bool valid = false;
+            if (_validTargets.TryGetValue(property.propertyPath, out (bool, bool, SerializedProperty) tuple))
+            {
+                if (tuple.Item1)
+                    removeUnused = true;
+                else _validTargets[property.propertyPath] = (true, tuple.Item2, tuple.Item3);
+                valid = tuple.Item2;
+            }
+            else
+            {
+                valid = InitializeTargetValidation(property);
+            }
+
+            if (removeUnused)
+            {
+                List<string> unused = new List<string>();
+                List<string> used = new List<string>();
+                foreach (var pair in _validTargets)
+                {
+                    if (!pair.Value.Item1)
+                        unused.Add(pair.Key);
+                    else used.Add(pair.Key);
+                }
+
+                for (int i = 0; i < unused.Count; i++)
+                    _validTargets.Remove(unused[i]);
+                for (int i = 0; i < used.Count; i++)
+                {
+                    ValueTuple<bool, bool, SerializedProperty> indexedTuple = _validTargets[used[i]];
+                    _validTargets[used[i]] = (false, indexedTuple.Item2, indexedTuple.Item3);
+                }
+            }
+            return valid;
+        }
+        private bool InitializeTargetValidation(SerializedProperty property)
+        {
+            bool valid = (property.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement.Condition).IsValid();
+            _validTargets[property.propertyPath] = (true, valid, property);
+            return valid;
+        }
         private void HandleOperandChange(ValueTuple<SerializedProperty, VisualStatement.Operand.ReferenceType, string> target, SerializedProperty other) 
         {
             var targetOperand = target.Item1.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement.Operand;
@@ -120,6 +176,8 @@ namespace UnitySimplifiedEditor
             var otherReferenceType = (VisualStatement.Operand.ReferenceType)other.FindPropertyRelative("referenceType").enumValueIndex;
             if (targetReferenceType != target.Item2)
             {
+                other.serializedObject.ApplyModifiedProperties();
+                other.serializedObject.Update();
                 if (targetReferenceType == VisualStatement.Operand.ReferenceType.Value && otherReferenceType == VisualStatement.Operand.ReferenceType.Field)
                 {
                     targetOperand.Intialize(null, otherOperand.ValueType);
@@ -133,12 +191,13 @@ namespace UnitySimplifiedEditor
                 return;
             }
         }
-        private string[] GetOperatorAsStrings(VisualStatement.Condition condition, SerializedProperty operatorProperty)
+        private string[] GetOperatorAsStrings(VisualStatement.Condition condition, SerializedProperty operatorProperty, bool isValid)
         {
             List<string> operators = new List<string>();
             var previous = operatorProperty.enumValueIndex;
             operatorProperty.enumValueIndex = (int)default(VisualStatement.Condition.RelationalOperator);
-            if (condition.IsValid())
+            if (isValid)
+            {
                 foreach (var enumValue in Enum.GetValues(typeof(VisualStatement.Condition.RelationalOperator)))
                 {
                     if (condition.AcceptsOperator((VisualStatement.Condition.RelationalOperator)enumValue))
@@ -164,6 +223,7 @@ namespace UnitySimplifiedEditor
                                 break;
                         }
                 }
+            }
             operatorProperty.enumValueIndex = previous;
             return operators.ToArray();
         }

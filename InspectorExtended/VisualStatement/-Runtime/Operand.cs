@@ -73,11 +73,26 @@ namespace UnitySimplified
                     message = $"The {nameof(valueType)} of {this} returned as NULL";
                     return false;
                 }
-                else if (referenceType == ReferenceType.Field && string.IsNullOrEmpty(valuePath))
+                if (referenceType == ReferenceType.Field)
                 {
-                    code = 1;
-                    message = $"Operand is set as {ReferenceType.Field} but the path to the field is null or empty";
-                    return false;
+                    if (string.IsNullOrEmpty(valuePath))
+                    {
+                        code = 1;
+                        message = $"Operand as {ReferenceType.Field} is invalid as the value path is NULL or empty";
+                        return false;
+                    }
+                    if (fieldObject == null || fieldObject.Equals(null))
+                    {
+                        code = 2;
+                        message = $"Operand as {ReferenceType.Field} is invalid as the field target object is missing";
+                        return false;
+                    }
+                    else if (VisualStatementUtility.GetReturnTypeFromObjectPath(fieldObject, valuePath) == null)
+                    {
+                        code = 3;
+                        message = $"Operand as {ReferenceType.Field} is invalid as the value given from value path is NULL";
+                        return false;
+                    }
                 }
                 return true;
             }

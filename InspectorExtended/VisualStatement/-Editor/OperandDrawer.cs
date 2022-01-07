@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEditor;
 using UnitySimplified;
 using UnityObject = UnityEngine.Object;
+using UnitySimplified.Serialization;
 
 namespace UnitySimplifiedEditor 
 {
@@ -96,17 +97,15 @@ namespace UnitySimplifiedEditor
                 EditorGUI.BeginProperty(genericMenuFieldRect, GUIContent.none, fieldObjectProp);
                 EditorGUI.BeginProperty(genericMenuFieldRect, GUIContent.none, valueTypeProp);
                 EditorGUI.BeginProperty(genericMenuFieldRect, GUIContent.none, valuePathProp);
-                GenericMenuSelection selection = HandleGenericMenu(genericMenuFieldRect, valuePathProp.stringValue, fieldObjectProp.objectReferenceValue, GUIStyle.none);
+                GenericMenuSelection selection = HandleGenericMenu(genericMenuFieldRect, operand.ValueType, valuePathProp.stringValue, fieldObjectProp.objectReferenceValue, GUIStyle.none);
                 if (EditorGUI.EndChangeCheck())
                 {
                     if (selection.target != null)
-                    {
                         fieldObjectProp.objectReferenceValue = selection.target;
-                    }
-                    var type = VisualStatementUtility.GetReturnTypeFromObjectPath(fieldObjectProp.objectReferenceValue, selection.memberPath);
-                    if (type != null || string.IsNullOrEmpty(selection.memberPath))
+                    var type = VisualStatementUtility.GetReturnTypeFromObjectPath(fieldObjectProp.objectReferenceValue, selection.MemberPath);
+                    if (type != null || string.IsNullOrEmpty(selection.path))
                     {
-                        valuePathProp.stringValue = selection.memberPath;
+                        valuePathProp.stringValue = selection.MemberPath;
                         property.serializedObject.ApplyModifiedProperties();
                         property.serializedObject.Update();
                         operand.Intialize(null, type);
@@ -122,11 +121,53 @@ namespace UnitySimplifiedEditor
         }
         #endregion
 
-        private GenericMenuSelection HandleGenericMenu(Rect position, string path, UnityObject obj, GUIStyle style)
+        private PriorityQueue<ValueTuple<string, string, string>, int> GetGenericMenuOptions(UnityObject target, bool displayTarget)
+        {
+            PriorityQueue<ValueTuple<string, string, string>, int> optionInfos = new PriorityQueue<(string, string, string), int>();
+            foreach (var member in target.GetType().GetMembers(VisualStatementUtility.flags))
+            {
+                if (!VisualStatementUtility.MemberisValid(member))
+                    continue;
+                string memberPath; // THIRD
+                string contextPath; // SECOND
+                string indexedPath; // FIRST
+                int priority;
+                switch (member.MemberType)
+                {
+                    case MemberTypes.Field:
+                        var field = member as FieldInfo;
+                        memberPath = field.Name;
+                        contextPath = $"{(displayTarget ? $"{target.GetType().Name}/" : "")}{field.FieldType.Name} {memberPath}";
+                        priority = 2;
+                        break;
+                    case MemberTypes.Property:
+                        var property = member as PropertyInfo;
+                        memberPath = property.Name;
+                        contextPath = $"{(displayTarget ? $"{target.GetType().Name}/" : "")}{property.PropertyType.Name} {memberPath}";
+                        priority = 1;
+                        break;
+                    case MemberTypes.Method:
+                        var method = member as MethodInfo;
+                        memberPath = method.Name;
+                        contextPath = $"{(displayTarget ? $"{target.GetType().Name}/" : "")}{method.ReturnType.Name} {memberPath} ()";
+                        priority = 0;
+                        break;
+
+                    default:
+                        continue;
+                }
+                indexedPath = $"{target.GetType().Name}.{memberPath}";
+                optionInfos.Insert((indexedPath, contextPath, memberPath), priority);
+            }
+            return optionInfos;
+        }
+        private GenericMenuSelection HandleGenericMenu(Rect position, Type type, string path, UnityObject obj, GUIStyle style)
         {
             Event evt = Event.current;
-            Dictionary<string, ValueTuple<string, UnityObject>> tuplesByPaths = new Dictionary<string, ValueTuple<string, UnityObject>>();
-            var contentPath = path;
+            int currentIndex = -1;
+            GUIContent content = new GUIContent("No Function");
+            List<string> contextPathsList;
+            Dictionary<int, ValueTuple<string, UnityObject>> tuplesByPaths = new Dictionary<int, ValueTuple<string, UnityObject>>();
 
             GameObject gObj = null;
             if (obj != null)
@@ -135,12 +176,13 @@ namespace UnitySimplifiedEditor
                     gObj = obj as GameObject;
                 else if (obj is Component)
                     gObj = (obj as Component).gameObject;
-                if (gObj)
-                    contentPath = !string.IsNullOrEmpty(path) ? $"{gObj.GetType().Name}/{contentPath}" : contentPath;
+                
+                content = !string.IsNullOrEmpty(path) ? gObj ? new GUIContent($"{obj.GetType().Name}.{path}") : new GUIContent(path) : content;
             }
 
             if (evt.type == EventType.ExecuteCommand && evt.commandName == PopupInfo.commandMessage || evt.type == EventType.MouseDown && evt.button == 0 && position.Contains(evt.mousePosition))
             {
+                contextPathsList = new List<string>();
                 if (gObj)
                 {
                     List<UnityObject> candidates = new List<UnityObject> { gObj };
@@ -148,37 +190,50 @@ namespace UnitySimplifiedEditor
                         if (component != null)
                             candidates.Add(component);
 
-                    for (int i = 0; i < candidates.Count; i++)
-                        foreach (var member in candidates[i].GetType().GetMembers(VisualStatementUtility.flags))
+                    for (int i = 0, j = 0; i < candidates.Count; i++)
+                    {
+                        var orderedOptions = GetGenericMenuOptions(candidates[i], true);
+                        for (int v = 0, count = orderedOptions.Count(); v < count; v++)
                         {
-                            if (!VisualStatementUtility.MemberisValid(member))
-                                continue;
-
-                            string memberPath = $"{member.Name}";
-                            string contextPath = $"{candidates[i].GetType().Name}/{memberPath}";
-                            tuplesByPaths[contextPath] = (memberPath, candidates[i]);
+                            var next = orderedOptions.Pop();
+                            if (next.Item1 == $"{obj.GetType().Name}.{path}")
+                                currentIndex = j;
+                            contextPathsList.Add(next.Item2);
+                            tuplesByPaths[j] = (next.Item3, candidates[i]);
+                            j++;
                         }
+                    }
                 }
                 else if (obj is ScriptableObject)
-                    foreach (var member in obj.GetType().GetMembers(VisualStatementUtility.flags))
-                        if (VisualStatementUtility.MemberisValid(member))
-                            tuplesByPaths[member.Name] = (member.Name, obj);
+                {
+                    int index = 0;
+                    var orderedOptions = GetGenericMenuOptions(obj, true);
+                    for (int i = 0, count = orderedOptions.Count(); i < count; i++)
+                    {
+                        var next = orderedOptions.Pop();
+                        if (next.Item1 == $"{obj.GetType().Name}.{path}")
+                            currentIndex = index;
+                        contextPathsList.Add(next.Item2);
+                        tuplesByPaths[index] = (next.Item3, obj);
+                        index++;
+                    }
+                }
             }
+            else contextPathsList = new List<string>();
 
-            var selected = GenericMenuField(position, contentPath, tuplesByPaths.Keys.ToArray(), style);
-            if (evt.commandName == PopupInfo.commandMessage && !string.IsNullOrEmpty(selected) && tuplesByPaths.TryGetValue(selected, out var value))
+            var selected = GenericMenuField(position, content, currentIndex, contextPathsList.ToArray(), style);
+            if (evt.commandName == PopupInfo.commandMessage && selected > -1 && tuplesByPaths.TryGetValue(selected, out var value))
                 return new GenericMenuSelection(value.Item2, value.Item1);
             else return new GenericMenuSelection("");
         }
-        private string GenericMenuField(Rect position, string path, string[] paths, GUIStyle style)
+        private int GenericMenuField(Rect position, GUIContent content, int selectedIndex, string[] paths, GUIStyle style)
         {
             if (style == null || style == GUIStyle.none)
                 style = EditorStyles.popup;
 
             Event evt = Event.current;
             int controlID = GUIUtility.GetControlID(FocusType.Keyboard);
-            var selected = PopupInfo.GetValueForControl(controlID, path);
-            var contentPath = $"{(!string.IsNullOrEmpty(path) ? $"{path.Replace('/', '.')}" : "No Function")}";
+            var selected = PopupInfo.GetValueForControl(controlID, selectedIndex);
 
             switch (Event.current.type)
             {
@@ -188,24 +243,24 @@ namespace UnitySimplifiedEditor
                         PopupInfo.instance = new PopupInfo(controlID);
 
                         GenericMenu menu = new GenericMenu();
-                        menu.AddItem(new GUIContent("No Function"), string.IsNullOrEmpty(path), () => PopupInfo.instance.SetValueDelegate(""));
+                        menu.AddItem(new GUIContent("No Function"), selectedIndex == -1, () => PopupInfo.instance.SetValueDelegate(-1));
                         if (paths.Length > 0)
                         {
                             menu.AddSeparator("");
                             for (int i = 0; i < paths.Length; i++)
                             {
-                                var indexedPath = paths[i];
-                                menu.AddItem(new GUIContent(indexedPath), contentPath == indexedPath.Replace('/', '.'), () => PopupInfo.instance.SetValueDelegate(indexedPath));
+                                int current = i;
+                                menu.AddItem(new GUIContent(paths[i]), i == selectedIndex, () => PopupInfo.instance.SetValueDelegate(current));
                             }
                         }
-                        menu.ShowAsContext();
+                        menu.DropDown(position);
 
                         GUIUtility.keyboardControl = controlID;
                         evt.Use();
                     }
                     break;
                 case EventType.Repaint:
-                    style.Draw(position, new GUIContent(contentPath), controlID, false, position.Contains(Event.current.mousePosition));
+                    style.Draw(position, content, controlID, false, position.Contains(Event.current.mousePosition));
                     break;
             }
             return selected;
@@ -216,15 +271,23 @@ namespace UnitySimplifiedEditor
     sealed class GenericMenuSelection
     {
         public readonly UnityObject target;
-        public readonly string memberPath;
-
-        public GenericMenuSelection(UnityObject target, string memberPath)
+        public readonly string path;
+        public string MemberPath 
         {
-            this.memberPath = memberPath;
+            get
+            {
+                string[] splitPath = path.Split('/');
+                return splitPath[splitPath.Length - 1];
+            } 
+        } 
+
+        public GenericMenuSelection(UnityObject target, string path)
+        {
+            this.path = path;
             this.target = target;
         }
-        public GenericMenuSelection(string memberPath)
-        {   this.memberPath = memberPath;   }
+        public GenericMenuSelection(string path)
+        {   this.path = path;   }
     }
 }
 

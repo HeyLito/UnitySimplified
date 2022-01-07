@@ -15,7 +15,7 @@ namespace UnitySimplified.Serialization
         /// <param name="action">
         /// </param>
         public static void AddPostSerializerAction(Action action)
-        { DataSerializerUtility.PostSerializerAction += action; }
+        {   DataSerializerUtility.PostSerializerAction += action;   }
 
         /// <summary>
         /// Clears all post-serializer processes.
@@ -26,7 +26,7 @@ namespace UnitySimplified.Serialization
         /// </br>
         /// </summary>
         public static void ClearPostSerializerActions()
-        { DataSerializerUtility.PostSerializerAction = null; }
+        {   DataSerializerUtility.PostSerializerAction = null;   }
 
         /// <summary>
         /// Some serializer processes must yield until deep-level <em>(i.e. runtime references)</em> data conversions are complete. This function invokes those post-serializer processes.
@@ -37,7 +37,7 @@ namespace UnitySimplified.Serialization
         /// </br>
         /// </summary>
         public static void InvokePostSerializerActions()
-        { DataSerializerUtility.PostSerializerAction?.Invoke(); ClearPostSerializerActions(); }
+        {   DataSerializerUtility.PostSerializerAction?.Invoke(); ClearPostSerializerActions();   }
 
 
 

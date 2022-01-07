@@ -168,7 +168,7 @@ namespace UnitySimplifiedEditor
             if (type == typeof(Gradient))
                 return EditorGUI.GradientField(rect, content, (Gradient)obj);
             
-            if (type == typeof(Enum))
+            if (type.IsSubclassOf(typeof(Enum)))
                 return EditorGUI.EnumFlagsField(rect, content, (Enum)obj);
             return obj;
         }

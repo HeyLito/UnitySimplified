@@ -147,7 +147,7 @@ namespace UnitySimplified.Serialization
         #region FUNCTIONS_SYSTEM.OBJECT_SERIALIZER
         public static void Serialize(object instance, Dictionary<string, object> fieldData, SerializerFlags flags)
         {
-            FieldInfo[] fields = instance.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.GetField | BindingFlags.SetField);
+            FieldInfo[] fields = instance.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
             foreach (var field in fields)
             {
                 if (field == null || field.FieldType.GetCustomAttributes(typeof(DontSaveField), true).Length > 0)
@@ -166,7 +166,7 @@ namespace UnitySimplified.Serialization
         {
             foreach (var pair in fieldData)
             {
-                FieldInfo field = instance.GetType().GetField(pair.Key, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.SetField);
+                FieldInfo field = instance.GetType().GetField(pair.Key, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
                 if (field == null)
                     continue;
 
@@ -188,9 +188,11 @@ namespace UnitySimplified.Serialization
         #region FUNCTIONS_HELPER
         public static bool FieldIsSerializable(FieldInfo fieldInfo, SurrogateSelector surrogateSelector)
         {
-            if (surrogateSelector != null && surrogateSelector.GetSurrogate(fieldInfo.FieldType, new StreamingContext(StreamingContextStates.All), out _) != null)
+            if (fieldInfo.Attributes.HasFlag(FieldAttributes.NotSerialized))
+                return false;
+            else if (surrogateSelector != null && surrogateSelector.GetSurrogate(fieldInfo.FieldType, new StreamingContext(StreamingContextStates.All), out _) != null)
                 return true;
-            if (fieldInfo.FieldType.IsSerializable)
+            else if (fieldInfo.FieldType.IsSerializable)
             {
                 for (int j = 0; j < _incompatibleAssemblies.Length; j++)
                     if (fieldInfo.FieldType.FullName.Contains(_incompatibleAssemblies[j]))
