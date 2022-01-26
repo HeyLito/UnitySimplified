@@ -14,8 +14,10 @@ namespace UnitySimplifiedEditor
     {
         #region FIELDS
         private readonly RectOffset _border = new RectOffset(7, 7, 8, 12);
-        private readonly Dictionary<string, ValueTuple<bool, bool, SerializedProperty>> _validTargets = new Dictionary<string, (bool, bool, SerializedProperty)>();
+        private readonly Dictionary<string, ValueTuple<int, bool, SerializedProperty>> _validTargets = new Dictionary<string, (int, bool, SerializedProperty)>();
         private readonly int _spacing = 4;
+        private bool _dragged = false;
+        private bool _up = false;
         #endregion
 
         #region METHODS
@@ -24,11 +26,31 @@ namespace UnitySimplifiedEditor
         {   return base.GetPropertyHeight(property, label) * 3 + _border.top + _border.bottom + 12;   }
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            if (VisualStatementDrawer.reinitialize)
-                _validTargets.Clear();
             VisualStatement.Condition condition = property.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement.Condition;
+            Event evt = Event.current;
             if (condition == null)
                 return;
+            switch (evt.type)
+            {
+                case EventType.MouseDrag:
+                    _dragged = true;
+                    break;
+
+                case EventType.MouseUp:
+                    if (_dragged)
+                        _up = true;
+                    else _dragged = _up = false;
+                    break;
+
+                case EventType.Repaint:
+                    if (_up)
+                    {
+                        _validTargets.Clear();
+                        _dragged = _up = false;
+                    }
+                    break;
+            }
+
             var lhsProp = property.FindPropertyRelative("lhs");
             var rhsProp = property.FindPropertyRelative("rhs");
             var operatorProp = property.FindPropertyRelative("relationalOperator");
@@ -60,7 +82,7 @@ namespace UnitySimplifiedEditor
             GUI.Box(boxHeaderRect, GUIContent.none, boxHeaderStyle);
             EditorGUI.EndProperty();
             GUI.Box(boxBgRect, GUIContent.none, boxBgStyle);
-            switch (Event.current.type) 
+            switch (evt.type) 
             {
                 case EventType.Repaint:
                     Color color = GUI.backgroundColor;
@@ -73,9 +95,9 @@ namespace UnitySimplifiedEditor
 
             EditorGUI.BeginChangeCheck();
             EditorGUI.PropertyField(lhsRect, lhsProp);
-            if (EditorGUI.EndChangeCheck() || Event.current.commandName == PopupInfo.commandMessage)
+            if (EditorGUI.EndChangeCheck()/* || Event.current.commandName == PopupInfo.commandMessage*/)
             {
-                HandleOperandChange((lhsProp, lhsValueReferenceType, lhsValuePath), rhsProp);
+                HandleOperandChange(lhsProp, lhsValueReferenceType, lhsValuePath, rhsProp, rhsValueReferenceType);
                 InitializeTargetValidation(property);
             }
 
@@ -87,26 +109,24 @@ namespace UnitySimplifiedEditor
             if (EditorGUI.EndChangeCheck() || popupIndex != operatorProp.enumValueIndex)
             {
                 operatorProp.enumValueIndex = popupIndex;
-                operatorProp.serializedObject.ApplyModifiedProperties();
-                operatorProp.serializedObject.Update();
                 InitializeTargetValidation(property);
             }
             EditorGUI.EndProperty();
 
             EditorGUI.BeginChangeCheck();
             EditorGUI.PropertyField(rhsRect, rhsProp);
-            if (EditorGUI.EndChangeCheck() || Event.current.commandName == PopupInfo.commandMessage)
+            if (EditorGUI.EndChangeCheck()/* || Event.current.commandName == PopupInfo.commandMessage*/)
             {
-                HandleOperandChange((rhsProp, rhsValueReferenceType, rhsValuePath), lhsProp);
+                HandleOperandChange(rhsProp, rhsValueReferenceType, rhsValuePath, lhsProp, lhsValueReferenceType);
                 InitializeTargetValidation(property);
             }
 
-            if (Event.current.type == EventType.MouseDown)
+            if (evt.type == EventType.MouseDown)
             {
-                if (Event.current.button == 0 && innerBoxBgRect.Contains(Event.current.mousePosition))
+                if (evt.button == 0 && innerBoxBgRect.Contains(evt.mousePosition))
                 {
                     GUIUtility.keyboardControl = controlID;
-                    Event.current.Use();
+                    evt.Use();
                 }
             }
             EditorGUI.indentLevel = indent;
@@ -120,18 +140,15 @@ namespace UnitySimplifiedEditor
             //else return InitializeTargetValidation(property);
 
             bool removeUnused = false;
-            bool valid = false;
-            if (_validTargets.TryGetValue(property.propertyPath, out (bool, bool, SerializedProperty) tuple))
+            bool valid;
+            if (_validTargets.TryGetValue(property.propertyPath, out (int, bool, SerializedProperty) tuple))
             {
-                if (tuple.Item1)
+                if (tuple.Item1 > 1)
                     removeUnused = true;
-                else _validTargets[property.propertyPath] = (true, tuple.Item2, tuple.Item3);
+                _validTargets[property.propertyPath] = (tuple.Item1 + 1, tuple.Item2, tuple.Item3);
                 valid = tuple.Item2;
             }
-            else
-            {
-                valid = InitializeTargetValidation(property);
-            }
+            else valid = InitializeTargetValidation(property);
 
             if (removeUnused)
             {
@@ -139,7 +156,7 @@ namespace UnitySimplifiedEditor
                 List<string> used = new List<string>();
                 foreach (var pair in _validTargets)
                 {
-                    if (!pair.Value.Item1)
+                    if (pair.Value.Item1 == 0)
                         unused.Add(pair.Key);
                     else used.Add(pair.Key);
                 }
@@ -148,8 +165,8 @@ namespace UnitySimplifiedEditor
                     _validTargets.Remove(unused[i]);
                 for (int i = 0; i < used.Count; i++)
                 {
-                    ValueTuple<bool, bool, SerializedProperty> indexedTuple = _validTargets[used[i]];
-                    _validTargets[used[i]] = (false, indexedTuple.Item2, indexedTuple.Item3);
+                    ValueTuple<int, bool, SerializedProperty> indexedTuple = _validTargets[used[i]];
+                    _validTargets[used[i]] = (0, indexedTuple.Item2, indexedTuple.Item3);
                 }
             }
             return valid;
@@ -157,38 +174,55 @@ namespace UnitySimplifiedEditor
         private bool InitializeTargetValidation(SerializedProperty property)
         {
             bool valid = (property.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement.Condition).IsValid();
-            _validTargets[property.propertyPath] = (true, valid, property);
+            _validTargets[property.propertyPath] = (0, valid, property);
             return valid;
         }
-        private void HandleOperandChange(ValueTuple<SerializedProperty, VisualStatement.Operand.ReferenceType, string> target, SerializedProperty other) 
+        private void HandleOperandChange(SerializedProperty targetProp, VisualStatement.Operand.ReferenceType targetRefType, string targetOldPath, SerializedProperty otherProp, VisualStatement.Operand.ReferenceType otherRefType) 
         {
-            var targetOperand = target.Item1.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement.Operand;
-            var otherOperand = other.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement.Operand;
-            if (target.Item3 != target.Item1.FindPropertyRelative("valuePath").stringValue)
+            var targetOperand = targetProp.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement.Operand;
+            var otherOperand = otherProp.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement.Operand;
+            
+            // Set the other operand's values to default if the target operand has a new member path.
+            if (otherRefType == VisualStatement.Operand.ReferenceType.Value && targetOldPath != targetProp.FindPropertyRelative("valuePath").stringValue)
             {
-                other.serializedObject.ApplyModifiedProperties();
-                other.serializedObject.Update();
+                otherProp.serializedObject.ApplyModifiedProperties();
+                otherProp.serializedObject.Update();
                 otherOperand.Intialize(null, targetOperand.ValueType);
-                EditorUtility.SetDirty(other.serializedObject.targetObject);
+                EditorUtility.SetDirty(otherProp.serializedObject.targetObject);
                 return;
             }
-            var targetReferenceType = (VisualStatement.Operand.ReferenceType)target.Item1.FindPropertyRelative("referenceType").enumValueIndex;
-            var otherReferenceType = (VisualStatement.Operand.ReferenceType)other.FindPropertyRelative("referenceType").enumValueIndex;
-            if (targetReferenceType != target.Item2)
+
+            var targetUpdatedRefType = (VisualStatement.Operand.ReferenceType)targetProp.FindPropertyRelative("referenceType").enumValueIndex;
+            // Check if the target-operand's reference was changed.
+            if (targetUpdatedRefType != targetRefType)
             {
-                other.serializedObject.ApplyModifiedProperties();
-                other.serializedObject.Update();
-                if (targetReferenceType == VisualStatement.Operand.ReferenceType.Value && otherReferenceType == VisualStatement.Operand.ReferenceType.Field)
+                // Set target-operand's values if it is a ValueType and the other operand is a FieldType
+                if (targetUpdatedRefType == VisualStatement.Operand.ReferenceType.Value && otherRefType == VisualStatement.Operand.ReferenceType.Field)
                 {
+                    targetProp.serializedObject.ApplyModifiedProperties();
+                    targetProp.serializedObject.Update();
                     targetOperand.Intialize(null, otherOperand.ValueType);
-                    EditorUtility.SetDirty(target.Item1.serializedObject.targetObject);
+                    EditorUtility.SetDirty(targetProp.serializedObject.targetObject);
+                    return;
                 }
-                else if (otherReferenceType == VisualStatement.Operand.ReferenceType.Value && targetReferenceType == VisualStatement.Operand.ReferenceType.Field)
+                // Set the other operand's values if it is a ValueType and the target operand is a FieldType
+                if (otherRefType == VisualStatement.Operand.ReferenceType.Value && targetUpdatedRefType == VisualStatement.Operand.ReferenceType.Field)
                 {
+                    otherProp.serializedObject.ApplyModifiedProperties();
+                    otherProp.serializedObject.Update();
                     otherOperand.Intialize(null, targetOperand.ValueType);
-                    EditorUtility.SetDirty(other.serializedObject.targetObject);
+                    EditorUtility.SetDirty(otherProp.serializedObject.targetObject);
+                    return;
                 }
-                return;
+
+                // Reset the other operand's value to default if previous if-checks were unsuccessful.
+                if (otherRefType == VisualStatement.Operand.ReferenceType.Value)
+                {
+                    otherProp.serializedObject.ApplyModifiedProperties();
+                    otherProp.serializedObject.Update();
+                    otherOperand.Intialize(null, null);
+                    EditorUtility.SetDirty(otherProp.serializedObject.targetObject);
+                }
             }
         }
         private string[] GetOperatorAsStrings(VisualStatement.Condition condition, SerializedProperty operatorProperty, bool isValid)

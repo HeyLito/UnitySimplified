@@ -1,14 +1,12 @@
 #if UNITY_EDITOR
 
 using System;
-using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using UnitySimplified;
 using UnityObject = UnityEngine.Object;
-using UnitySimplified.Serialization;
 
 namespace UnitySimplifiedEditor 
 {
@@ -33,90 +31,90 @@ namespace UnitySimplifiedEditor
             var fieldSubObjectProp = property.FindPropertyRelative("fieldSubObject");
             float objFieldWidth = position.width * 0.3f;
             float height = EditorGUIUtility.singleLineHeight;
+            VisualStatement.Operand.ReferenceType referenceType = (VisualStatement.Operand.ReferenceType)referenceTypeProp.enumValueIndex;
 
             Rect referenceTypeRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
             Rect fieldSubObjectRect = new Rect(position.x, position.y + 2 + height, objFieldWidth, height);
             Rect genericMenuFieldRect = new Rect(position.x + objFieldWidth + _spacing * 0.5f, position.y + 2 + height, position.width - objFieldWidth - _spacing * 0.5f, height);
             Rect genericObjectFieldRect = new Rect(position.x, position.y + 2 + height, position.width, height);
-
             EditorGUI.BeginChangeCheck();
             EditorGUI.BeginProperty(referenceTypeRect, GUIContent.none, property);
             EditorGUI.PropertyField(referenceTypeRect, referenceTypeProp, GUIContent.none);
             EditorGUI.EndProperty();
-            if (EditorGUI.EndChangeCheck())
+            if (EditorGUI.EndChangeCheck() && referenceType != (VisualStatement.Operand.ReferenceType)referenceTypeProp.enumValueIndex)
             {
-                if ((VisualStatement.Operand.ReferenceType)referenceTypeProp.enumValueIndex == VisualStatement.Operand.ReferenceType.Value)
-                {
-                    fieldObjectProp.objectReferenceValue = null;
-                    fieldSubObjectProp.objectReferenceValue = null;
-                    valuePathProp.stringValue = "";
-                    property.serializedObject.ApplyModifiedProperties();
-                    property.serializedObject.Update();
-                    operand.Intialize(null, null);
-                    EditorUtility.SetDirty(property.serializedObject.targetObject);
-                }
+                referenceType = (VisualStatement.Operand.ReferenceType)referenceTypeProp.enumValueIndex;
+                fieldObjectProp.objectReferenceValue = null;
+                fieldSubObjectProp.objectReferenceValue = null;
+                valuePathProp.stringValue = "";
+                property.serializedObject.ApplyModifiedProperties();
+                property.serializedObject.Update();
+                operand.Intialize(null, null);
+                EditorUtility.SetDirty(property.serializedObject.targetObject);
             }
 
-            if ((VisualStatement.Operand.ReferenceType)referenceTypeProp.enumValueIndex == VisualStatement.Operand.ReferenceType.Value)
+            switch (referenceType)
             {
-                Type valueType = operand.ValueType;
-                if (valueType != null)
-                {
+                case VisualStatement.Operand.ReferenceType.Value:
+                    Type valueType = operand.ValueType;
+                    if (valueType != null)
+                    {
+                        EditorGUI.BeginChangeCheck();
+                        EditorGUI.BeginProperty(genericMenuFieldRect, GUIContent.none, valueTypeProp);
+                        var newValue = EditorGUIExtras.ObjectField(genericObjectFieldRect, operand.GetValueObject(), valueType);
+                        if (EditorGUI.EndChangeCheck())
+                        {
+                            property.serializedObject.ApplyModifiedProperties();
+                            property.serializedObject.Update();
+                            operand.Intialize(newValue, valueType);
+                            EditorUtility.SetDirty(property.serializedObject.targetObject);
+                        }
+                        EditorGUI.EndProperty();
+                    }
+                    break;
+
+                case VisualStatement.Operand.ReferenceType.Field:
+                    #region OBJECT_FIELD
                     EditorGUI.BeginChangeCheck();
-                    EditorGUI.BeginProperty(genericMenuFieldRect, GUIContent.none, valueTypeProp);
-                    var newValue = EditorGUIExtras.ObjectField(genericObjectFieldRect, operand.GetValueObject(), valueType);
+                    EditorGUI.PropertyField(fieldSubObjectRect, fieldSubObjectProp, GUIContent.none);
                     if (EditorGUI.EndChangeCheck())
                     {
+                        fieldObjectProp.objectReferenceValue = fieldSubObjectProp.objectReferenceValue;
+                        valuePathProp.stringValue = "";
                         property.serializedObject.ApplyModifiedProperties();
                         property.serializedObject.Update();
-                        operand.Intialize(newValue, valueType);
+                        operand.Intialize(null, null);
                         EditorUtility.SetDirty(property.serializedObject.targetObject);
+                    }
+                    #endregion
+
+                    #region GENERIC_MENU_SELECTION
+                    EditorGUI.BeginDisabledGroup(!fieldObjectProp.objectReferenceValue);
+                    EditorGUI.BeginChangeCheck();
+                    EditorGUI.BeginProperty(genericMenuFieldRect, GUIContent.none, fieldObjectProp);
+                    EditorGUI.BeginProperty(genericMenuFieldRect, GUIContent.none, valueTypeProp);
+                    EditorGUI.BeginProperty(genericMenuFieldRect, GUIContent.none, valuePathProp);
+                    GenericMenuSelection selection = HandleGenericMenu(genericMenuFieldRect, operand.ValueType, valuePathProp.stringValue, fieldObjectProp.objectReferenceValue, GUIStyle.none);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        if (selection.target != null)
+                            fieldObjectProp.objectReferenceValue = fieldSubObjectProp.objectReferenceValue = selection.target;
+                        var type = VisualStatementUtility.GetReturnTypeFromObjectPath(fieldObjectProp.objectReferenceValue, selection.MemberPath);
+                        if (type != null || string.IsNullOrEmpty(selection.path))
+                        {
+                            valuePathProp.stringValue = selection.MemberPath;
+                            property.serializedObject.ApplyModifiedProperties();
+                            property.serializedObject.Update();
+                            operand.Intialize(null, type);
+                            EditorUtility.SetDirty(property.serializedObject.targetObject);
+                        }
                     }
                     EditorGUI.EndProperty();
-                }
-            }
-            else if ((VisualStatement.Operand.ReferenceType)referenceTypeProp.enumValueIndex == VisualStatement.Operand.ReferenceType.Field)
-            {
-                #region OBJECT_FIELD
-                EditorGUI.BeginChangeCheck();
-                EditorGUI.PropertyField(fieldSubObjectRect, fieldSubObjectProp, GUIContent.none);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    fieldObjectProp.objectReferenceValue = fieldSubObjectProp.objectReferenceValue;
-                    valuePathProp.stringValue = "";
-                    property.serializedObject.ApplyModifiedProperties();
-                    property.serializedObject.Update();
-                    operand.Intialize(null, null);
-                    EditorUtility.SetDirty(property.serializedObject.targetObject);
-                }
-                #endregion
-
-                #region GENERIC_MENU_SELECTION
-                EditorGUI.BeginDisabledGroup(!fieldObjectProp.objectReferenceValue);
-                EditorGUI.BeginChangeCheck();
-                EditorGUI.BeginProperty(genericMenuFieldRect, GUIContent.none, fieldObjectProp);
-                EditorGUI.BeginProperty(genericMenuFieldRect, GUIContent.none, valueTypeProp);
-                EditorGUI.BeginProperty(genericMenuFieldRect, GUIContent.none, valuePathProp);
-                GenericMenuSelection selection = HandleGenericMenu(genericMenuFieldRect, operand.ValueType, valuePathProp.stringValue, fieldObjectProp.objectReferenceValue, GUIStyle.none);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    if (selection.target != null)
-                        fieldObjectProp.objectReferenceValue = selection.target;
-                    var type = VisualStatementUtility.GetReturnTypeFromObjectPath(fieldObjectProp.objectReferenceValue, selection.MemberPath);
-                    if (type != null || string.IsNullOrEmpty(selection.path))
-                    {
-                        valuePathProp.stringValue = selection.MemberPath;
-                        property.serializedObject.ApplyModifiedProperties();
-                        property.serializedObject.Update();
-                        operand.Intialize(null, type);
-                        EditorUtility.SetDirty(property.serializedObject.targetObject);
-                    }
-                }
-                EditorGUI.EndProperty();
-                EditorGUI.EndProperty();
-                EditorGUI.EndProperty();
-                EditorGUI.EndDisabledGroup();
-                #endregion
+                    EditorGUI.EndProperty();
+                    EditorGUI.EndProperty();
+                    EditorGUI.EndDisabledGroup();
+                    #endregion
+                    break;
             }
         }
         #endregion

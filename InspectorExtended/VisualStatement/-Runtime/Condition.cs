@@ -125,9 +125,10 @@ namespace UnitySimplified
                     case RelationalOperator.GreaterThanOrEqualTo:
                     case RelationalOperator.LessThan:
                     case RelationalOperator.LessThanOrEqualTo:
-                        if (!lhs.ValueType.IsNumericType() || !rhs.ValueType.IsNumericType())
+                        Type lhsType = lhs.ValueType, rhsType = rhs.ValueType;
+                        if (!lhsType.IsNumericType() || !rhsType.IsNumericType())
                             return false;
-                        if (!lhs.ValueType.GetInterfaces().Contains(typeof(IConvertible)) || !rhs.ValueType.GetInterfaces().Contains(typeof(IConvertible)))
+                        if (!lhsType.GetInterfaces().Contains(typeof(IConvertible)) || !rhsType.GetInterfaces().Contains(typeof(IConvertible)))
                             return false;
                         break;
                 }

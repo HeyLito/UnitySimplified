@@ -12,7 +12,7 @@ namespace UnitySimplified
         public sealed class Operand
         {
             [Serializable]
-            private sealed class DataTransfer
+            private class DataTransfer
             {
                 public object value;
                 public DataTransfer()
@@ -47,7 +47,13 @@ namespace UnitySimplified
                 get
                 {
                     if (_valueType != null)
-                        return _valueType;
+                    {
+                        if (string.IsNullOrEmpty(valueType))
+                            return _valueType = null;
+                        if (!string.IsNullOrEmpty(valueType) && _valueType.AssemblyQualifiedName != valueType)
+                            return _valueType = Type.GetType(valueType);
+                        else return _valueType;
+                    }
                     else if (!string.IsNullOrEmpty(valueType))
                         return _valueType = Type.GetType(valueType);
                     return null;
@@ -220,6 +226,9 @@ namespace UnitySimplified
 
                 return DoGetResult();
             }
+
+            public override string ToString()
+            {   return base.ToString() + $"({ValueType})";   }
             #endregion
         }
     }

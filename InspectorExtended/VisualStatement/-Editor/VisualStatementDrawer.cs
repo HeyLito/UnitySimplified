@@ -39,10 +39,11 @@ namespace UnitySimplifiedEditor
         #region FIELDS
         private readonly int _conditionHeight = 100;
         private readonly int _logicalOperatorHeight = 20;
-        private readonly Dictionary<string, ValueTuple<bool, ReorderableList>> _reorderableLists = new Dictionary<string, ValueTuple<bool, ReorderableList>>();
+        private readonly Dictionary<string, ValueTuple<int, ReorderableList>> _reorderableLists = new Dictionary<string, ValueTuple<int, ReorderableList>>();
+        private bool _dragged = false;
+        private bool _up = false;
         private ReorderableList _targetList = null;
         private SerializedProperty _prop;
-        public static bool reinitialize = false;
         #endregion
 
         #region METHODS
@@ -57,6 +58,30 @@ namespace UnitySimplifiedEditor
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             Event evt = Event.current;
+
+            switch (evt.type)
+            {
+                case EventType.MouseDown:
+                    _dragged = _up = false;
+                    break;
+
+                case EventType.MouseDrag:
+                    _dragged = true;
+                    break;
+
+                case EventType.MouseUp:
+                    if (_dragged)
+                        _up = true;
+                    else _dragged = _up = false;
+                    break;
+            }
+
+            if (evt.type == EventType.Repaint && _up)
+            {
+                _reorderableLists.Clear();
+                _dragged = _up = false;
+            }
+
             int controlID = GUIUtility.GetControlID(FocusType.Keyboard);
             _prop = property;
             _targetList = HandleListCollection(property);
@@ -65,9 +90,9 @@ namespace UnitySimplifiedEditor
                 _targetList.DoList(position);
                 if (evt.GetTypeForControl(controlID) == EventType.MouseDown)
                 {
-                    if (evt.button == 0 && !new Rect(position.x, position.y, position.width, position.height - _targetList.footerHeight).Contains(evt.mousePosition))
+                    if (_targetList.displayRemove && evt.button == 0 && !new Rect(position.x, position.y, position.width, position.height - _targetList.footerHeight).Contains(evt.mousePosition))
                     {
-                        _targetList.draggable = _targetList.displayRemove = false;
+                        _targetList.displayRemove = _targetList.draggable = false;
                         GUIUtility.keyboardControl = 0;
                         GUI.changed = true;
                     }
@@ -77,8 +102,8 @@ namespace UnitySimplifiedEditor
         }
         #endregion
 
-        private void SetListToCollection(SerializedProperty property)
-        {   reinitialize = true; _reorderableLists[$"{property.serializedObject.targetObject.name}.{property.propertyPath}"] = (true, RecontructList(property));   }
+        private ReorderableList SetListToCollection(SerializedProperty property)
+        {   ReorderableList list = RecontructList(property); _reorderableLists[$"{property.serializedObject.targetObject.name}.{property.propertyPath}"] = (0, list); return list;   }
         private ReorderableList RecontructList(SerializedProperty property)
         {
             List<VisualStatementElement> visualElementList = CreateListOfElements(property);
@@ -94,19 +119,66 @@ namespace UnitySimplifiedEditor
             };
             return list;
         }
+        private void HandleReorderSwap(SerializedProperty property, ReorderableList list, int oldIndex, int newIndex)
+        {
+            var visualStatement = property.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement;
+            var arrayInfo = visualStatement.GetType().GetField("conditions", VisualStatementUtility.flags | BindingFlags.NonPublic);
+            var arrayList = arrayInfo.GetValue(visualStatement) as IList;
+            int conditionsOldIndex = visualStatement.ConditionsCount - 1 - (list.count - (1 + oldIndex)) / 2;
+            int conditionsNewIndex = visualStatement.ConditionsCount - 1 - (list.count - (1 + newIndex)) / 2;
+            var oldIndexedValue = arrayList[conditionsOldIndex];
+            var newIndexedValue = arrayList[conditionsNewIndex];
+            arrayList[conditionsOldIndex] = newIndexedValue;
+            arrayList[conditionsNewIndex] = oldIndexedValue;
+            arrayInfo.SetValue(visualStatement, arrayList);
+        }
+        private void HandleReorderMove(SerializedProperty property, ReorderableList list, int oldIndex, int newIndex)
+        {
+            var visualStatement = property.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement;
+            var arrayInfo = visualStatement.GetType().GetField("conditions", VisualStatementUtility.flags | BindingFlags.NonPublic);
+            var arrayList = arrayInfo.GetValue(visualStatement) as IList;
+            int conditionsOldIndex = visualStatement.ConditionsCount - 1 - (list.count - (1 + oldIndex)) / 2;
+            int conditionsNewIndex = visualStatement.ConditionsCount - 1 - (list.count - (1 + newIndex)) / 2;
+            var oldIndexedValue = arrayList[conditionsOldIndex];
+            if (oldIndex < newIndex)
+                for (int i = conditionsOldIndex; i < conditionsNewIndex; i++)
+                    arrayList[i] = arrayList[i + 1];
+            else for (int i = conditionsOldIndex; i > conditionsNewIndex; i--)
+                    arrayList[i] = arrayList[i - 1];
+            arrayList[conditionsNewIndex] = oldIndexedValue;
+            arrayInfo.SetValue(visualStatement, arrayList);
+        }
+        private string[] GetOperatorsAsStrings()
+        {
+            List<string> operators = new List<string>();
+            foreach (var enumValue in Enum.GetValues(typeof(VisualStatement.LogicalOperator)))
+            {
+                operators.Add(enumValue.ToString());
+                //switch ((VisualStatement.LogicalOperator)enumValue)
+                //{
+                //    case VisualStatement.LogicalOperator.AND:
+                //        operators.Add("&&");
+                //        break;
+                //    case VisualStatement.LogicalOperator.OR:
+                //        operators.Add("||");
+                //        break;
+                //}
+            }
+            return operators.ToArray();
+        }
         private ReorderableList HandleListCollection(SerializedProperty property)
         {
             ReorderableList list = null;
             bool removeUnused = false;
 
-            if (_reorderableLists.TryGetValue($"{property.serializedObject.targetObject.name}.{property.propertyPath}", out (bool, ReorderableList) tuple))
+            if (_reorderableLists.TryGetValue($"{property.serializedObject.targetObject.name}.{property.propertyPath}", out (int, ReorderableList) tuple))
             {
-                if (tuple.Item1)
+                if (tuple.Item1 > 1)
                     removeUnused = true;
-                else _reorderableLists[$"{property.serializedObject.targetObject.name}.{property.propertyPath}"] = (true, tuple.Item2);
+                _reorderableLists[$"{property.serializedObject.targetObject.name}.{property.propertyPath}"] = (tuple.Item1 + 1, tuple.Item2);
                 list = tuple.Item2;
             }
-            else SetListToCollection(property);
+            else list = SetListToCollection(property);
 
             if (removeUnused)
             {
@@ -114,7 +186,7 @@ namespace UnitySimplifiedEditor
                 List<string> used = new List<string>();
                 foreach (var pair in _reorderableLists)
                 {
-                    if (!pair.Value.Item1)
+                    if (pair.Value.Item1 == 0)
                         unused.Add(pair.Key);
                     else used.Add(pair.Key);
                 }
@@ -123,29 +195,11 @@ namespace UnitySimplifiedEditor
                     _reorderableLists.Remove(unused[i]);
                 for (int i = 0; i < used.Count; i++)
                 {
-                    ValueTuple<bool, ReorderableList> indexedTuple = _reorderableLists[used[i]];
-                    _reorderableLists[used[i]] = (false, indexedTuple.Item2);
+                    ValueTuple<int, ReorderableList> indexedTuple = _reorderableLists[used[i]];
+                    _reorderableLists[used[i]] = (0, indexedTuple.Item2);
                 }
             }
             return list;
-        }
-
-        private string[] GetOperatorsAsStrings()
-        {
-            List<string> operators = new List<string>();
-            foreach (var enumValue in Enum.GetValues(typeof(VisualStatement.LogicalOperator)))
-            {
-                switch ((VisualStatement.LogicalOperator)enumValue)
-                {
-                    case VisualStatement.LogicalOperator.AND:
-                        operators.Add("&&");
-                        break;
-                    case VisualStatement.LogicalOperator.OR:
-                        operators.Add("||");
-                        break;
-                }
-            }
-            return operators.ToArray();
         }
         private List<VisualStatementElement> CreateListOfElements(SerializedProperty serializedProperty)
         {
@@ -200,22 +254,10 @@ namespace UnitySimplifiedEditor
             if (_prop == null || list.index >= list.count || (list.list[list.index] as VisualStatementElement).elementType == VisualStatementElement.ElementType.LogicalOperator)
                 return;
 
-            var visualStatement = _prop.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement;
-            var arrayInfo = visualStatement.GetType().GetField("conditions", VisualStatementUtility.flags | BindingFlags.NonPublic);
-            var arrayList = arrayInfo.GetValue(visualStatement) as IList;
-            int conditionsOldIndex = visualStatement.ConditionsCount - 1 - (list.count - (1 + oldIndex)) / 2;
-            int conditionsNewIndex = visualStatement.ConditionsCount - 1 - (list.count - (1 + newIndex)) / 2;
-            var oldIndexedValue = arrayList[conditionsOldIndex];
-            var newIndexedValue = arrayList[conditionsNewIndex];
-            arrayList[conditionsOldIndex] = newIndexedValue;
-            arrayList[conditionsNewIndex] = oldIndexedValue;
-            arrayInfo.SetValue(visualStatement, arrayList);
-
-
-            EditorUtility.SetDirty(_prop.serializedObject.targetObject);
-
+            HandleReorderMove(_prop, list, oldIndex, newIndex);
             _prop.serializedObject.ApplyModifiedProperties();
             _prop.serializedObject.Update();
+            EditorUtility.SetDirty(_prop.serializedObject.targetObject);
 
             SetListToCollection(_prop);
         }
@@ -280,33 +322,25 @@ namespace UnitySimplifiedEditor
                 _prop.serializedObject.Update();
 
                 _reorderableLists.Remove($"{_prop.serializedObject.targetObject.name}.{_prop.propertyPath}");
-                //_reorderableLists.Clear();
-                //_targetList = null;
-                //_prop = null;
             }
 
         }
         private void DrawHeaderCallback(Rect rect)
         {
+            int indent = EditorGUI.indentLevel;
+            EditorGUI.indentLevel = 0;
             EditorGUI.BeginProperty(rect, GUIContent.none, _prop);
             EditorGUI.LabelField(rect, _prop != null ? _prop.displayName : "");
             EditorGUI.EndProperty();
+            EditorGUI.indentLevel = indent;
         }
         private void DrawListElementCallback(Rect rect, int index, bool isActive, bool isFocused)
         {
             if (_prop == null || _targetList == null)
                 return;
 
-            var element = _targetList.list[index] as VisualStatementElement;
-            if ((_prop.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement).Count != _targetList.count)
-            {
-                _prop.serializedObject.Update();
-                _reorderableLists.Clear();
-                _targetList = null;
-                _prop = null;
-                return;
-            }
-
+            VisualStatementElement element = _targetList.list[index] as VisualStatementElement;
+            Event evt = Event.current;
             float operatorWidth = rect.width * 0.30f;
             float remainderWidth = (rect.width - operatorWidth) / 2;
 
@@ -314,14 +348,19 @@ namespace UnitySimplifiedEditor
             Rect operatorRect = new Rect(rect.x + remainderWidth, rect.y + 2, operatorWidth, EditorGUIUtility.singleLineHeight);
 
             GUIStyle operatorStyle = new GUIStyle(EditorStyles.popup) { alignment = TextAnchor.MiddleCenter };
-
             switch (element.elementType) 
             {
                 case VisualStatementElement.ElementType.Condition:
+                    if (evt.type == EventType.MouseDown && rect.Contains(evt.mousePosition))
+                        _targetList.draggable = _targetList.displayRemove = true;
+
                     EditorGUI.PropertyField(visualStatementRect, element.property);
                     break;
 
                 case VisualStatementElement.ElementType.LogicalOperator:
+                    if (evt.type == EventType.MouseDown && rect.Contains(evt.mousePosition))
+                        _targetList.draggable = _targetList.displayRemove = false;
+
                     EditorGUI.BeginChangeCheck();
                     string[] operators = GetOperatorsAsStrings();
                     int popup = EditorGUI.Popup(operatorRect, element.property.enumValueIndex, operators, operatorStyle);
@@ -333,7 +372,6 @@ namespace UnitySimplifiedEditor
                     }
                     break;
             }
-            reinitialize = false;
         }
         #endregion
         #endregion

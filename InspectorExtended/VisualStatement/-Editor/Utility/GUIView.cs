@@ -1,3 +1,5 @@
+#if UNITY_EDITOR
+
 using System;
 using System.Reflection;
 using UnityEditor;
@@ -29,3 +31,5 @@ namespace UnitySimplifiedEditor
         {   repaintImmediatelyInfo.Invoke(currentInfo.GetValue(null, null), null);   }
     }
 }
+
+#endif

@@ -44,7 +44,6 @@ namespace UnitySimplified
                     return false;
                 }
             }
-
             return true;
         }
 
