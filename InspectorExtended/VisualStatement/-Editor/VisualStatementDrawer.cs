@@ -80,11 +80,7 @@ namespace UnitySimplifiedEditor
 
                 case EventType.Repaint:
                     if (_validatePropArrays)
-                    {
                         ValidatePropertyArrays(_prop);
-                        _reorderableLists.Clear();
-                        _validatePropArrays = false;
-                    }
                     if (_up)
                     {
                         _reorderableLists.Clear();
@@ -93,11 +89,12 @@ namespace UnitySimplifiedEditor
                     break;
 
                 case EventType.ContextClick:
+                    _reorderableLists.Clear();
                     _validatePropArrays = true;
                     break;
             }
 
-            _targetList = HandleListCollection(property);
+            _targetList = HandleListCollection(_prop);
             if (_targetList != null)
             {
                 _targetList.DoList(position);
@@ -143,9 +140,6 @@ namespace UnitySimplifiedEditor
         {
             var conditionsProp = property.FindPropertyRelative("conditions");
             var logicalOperatorsProp = property.FindPropertyRelative("logicalOperators");
-
-            conditionsProp.serializedObject.ApplyModifiedProperties();
-            conditionsProp.serializedObject.Update();
 
             if (logicalOperatorsProp.arraySize != conditionsProp.arraySize - 1 && conditionsProp.arraySize > 0)
             {
@@ -201,6 +195,7 @@ namespace UnitySimplifiedEditor
 
             if (removeUnused)
             {
+                _validatePropArrays = false;
                 List<string> unused = new List<string>();
                 List<string> used = new List<string>();
                 foreach (var pair in _reorderableLists)
