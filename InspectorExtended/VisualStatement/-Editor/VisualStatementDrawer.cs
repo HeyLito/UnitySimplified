@@ -42,6 +42,7 @@ namespace UnitySimplifiedEditor
         private readonly Dictionary<string, ValueTuple<int, ReorderableList>> _reorderableLists = new Dictionary<string, ValueTuple<int, ReorderableList>>();
         private bool _dragged = false;
         private bool _up = false;
+        private bool _validatePropArrays = false;
         private ReorderableList _targetList = null;
         private SerializedProperty _prop;
         #endregion
@@ -74,12 +75,24 @@ namespace UnitySimplifiedEditor
                         _up = true;
                     else _dragged = _up = false;
                     break;
-            }
 
-            if (evt.type == EventType.Repaint && _up)
-            {
-                _reorderableLists.Clear();
-                _dragged = _up = false;
+                case EventType.Repaint:
+                    if (_validatePropArrays)
+                    {
+                        ValidatePropertyArrays(_prop);
+                        _validatePropArrays = false;
+                    }
+                    if (_up)
+                    {
+                        _reorderableLists.Clear();
+                        _dragged = _up = false;
+                    }
+                    break;
+
+                case EventType.ContextClick:
+                    _validatePropArrays = true;
+                    _reorderableLists.Clear();
+                    break;
             }
 
             int controlID = GUIUtility.GetControlID(FocusType.Keyboard);
@@ -119,6 +132,30 @@ namespace UnitySimplifiedEditor
             };
             return list;
         }
+        private string[] GetOperatorsAsStrings()
+        {
+            List<string> operators = new List<string>();
+            foreach (var enumValue in Enum.GetValues(typeof(VisualStatement.LogicalOperator)))
+                operators.Add(enumValue.ToString());
+            return operators.ToArray();
+        }
+        private void ValidatePropertyArrays(SerializedProperty property)
+        {
+            var conditionsProp = property.FindPropertyRelative("conditions");
+            var logicalOperatorsProp = property.FindPropertyRelative("logicalOperators");
+
+            conditionsProp.serializedObject.ApplyModifiedProperties();
+            conditionsProp.serializedObject.Update();
+
+            if (logicalOperatorsProp.arraySize != conditionsProp.arraySize - 1 && conditionsProp.arraySize > 0)
+            {
+                logicalOperatorsProp.arraySize = conditionsProp.arraySize - 1;
+                logicalOperatorsProp.serializedObject.ApplyModifiedProperties();
+                logicalOperatorsProp.serializedObject.Update();
+            }
+            SetListToCollection(property);
+        }
+
         private void HandleReorderSwap(SerializedProperty property, ReorderableList list, int oldIndex, int newIndex)
         {
             var visualStatement = property.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement;
@@ -147,24 +184,6 @@ namespace UnitySimplifiedEditor
                     arrayList[i] = arrayList[i - 1];
             arrayList[conditionsNewIndex] = oldIndexedValue;
             arrayInfo.SetValue(visualStatement, arrayList);
-        }
-        private string[] GetOperatorsAsStrings()
-        {
-            List<string> operators = new List<string>();
-            foreach (var enumValue in Enum.GetValues(typeof(VisualStatement.LogicalOperator)))
-            {
-                operators.Add(enumValue.ToString());
-                //switch ((VisualStatement.LogicalOperator)enumValue)
-                //{
-                //    case VisualStatement.LogicalOperator.AND:
-                //        operators.Add("&&");
-                //        break;
-                //    case VisualStatement.LogicalOperator.OR:
-                //        operators.Add("||");
-                //        break;
-                //}
-            }
-            return operators.ToArray();
         }
         private ReorderableList HandleListCollection(SerializedProperty property)
         {
