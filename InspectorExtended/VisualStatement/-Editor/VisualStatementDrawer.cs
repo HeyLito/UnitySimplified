@@ -59,6 +59,8 @@ namespace UnitySimplifiedEditor
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             Event evt = Event.current;
+            int controlID = GUIUtility.GetControlID(FocusType.Keyboard);
+            _prop = property;
 
             switch (evt.type)
             {
@@ -80,6 +82,7 @@ namespace UnitySimplifiedEditor
                     if (_validatePropArrays)
                     {
                         ValidatePropertyArrays(_prop);
+                        _reorderableLists.Clear();
                         _validatePropArrays = false;
                     }
                     if (_up)
@@ -91,12 +94,9 @@ namespace UnitySimplifiedEditor
 
                 case EventType.ContextClick:
                     _validatePropArrays = true;
-                    _reorderableLists.Clear();
                     break;
             }
 
-            int controlID = GUIUtility.GetControlID(FocusType.Keyboard);
-            _prop = property;
             _targetList = HandleListCollection(property);
             if (_targetList != null)
             {
