@@ -40,9 +40,9 @@ namespace UnitySimplifiedEditor
         private readonly int _conditionHeight = 100;
         private readonly int _logicalOperatorHeight = 20;
         private readonly Dictionary<string, ValueTuple<int, ReorderableList>> _reorderableLists = new Dictionary<string, ValueTuple<int, ReorderableList>>();
+        private bool _cleanup = false;
         private bool _dragged = false;
         private bool _up = false;
-        private bool _validatePropArrays = false;
         private ReorderableList _targetList = null;
         private SerializedProperty _prop;
         #endregion
@@ -65,22 +65,29 @@ namespace UnitySimplifiedEditor
             switch (evt.type)
             {
                 case EventType.MouseDown:
-                    _dragged = _up = false;
+                    if (evt.button == 0)
+                        _dragged = _up = false;
                     break;
 
                 case EventType.MouseDrag:
-                    _dragged = true;
+                    if (evt.button == 0)
+                        _dragged = true;
                     break;
 
                 case EventType.MouseUp:
-                    if (_dragged)
-                        _up = true;
-                    else _dragged = _up = false;
+                    if (evt.button == 0)
+                        if (_dragged)
+                            _up = true;
+                        else _dragged = _up = false;
                     break;
 
-                case EventType.Repaint:
-                    if (_validatePropArrays)
+
+                case EventType.Layout:
+                    if (_cleanup)
+                    {
                         ValidatePropertyArrays(_prop);
+                        _reorderableLists.Clear();
+                    }
                     if (_up)
                     {
                         _reorderableLists.Clear();
@@ -89,8 +96,11 @@ namespace UnitySimplifiedEditor
                     break;
 
                 case EventType.ContextClick:
-                    _reorderableLists.Clear();
-                    _validatePropArrays = true;
+                    _cleanup = true;
+                    break;
+
+                case EventType.Repaint:
+                    _cleanup = false;
                     break;
             }
 
@@ -181,7 +191,7 @@ namespace UnitySimplifiedEditor
         }
         private ReorderableList HandleListCollection(SerializedProperty property)
         {
-            ReorderableList list = null;
+            ReorderableList list;
             bool removeUnused = false;
 
             if (_reorderableLists.TryGetValue($"{property.serializedObject.targetObject.name}.{property.propertyPath}", out (int, ReorderableList) tuple))
@@ -195,7 +205,6 @@ namespace UnitySimplifiedEditor
 
             if (removeUnused)
             {
-                _validatePropArrays = false;
                 List<string> unused = new List<string>();
                 List<string> used = new List<string>();
                 foreach (var pair in _reorderableLists)

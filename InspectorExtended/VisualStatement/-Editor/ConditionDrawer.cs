@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEditor;
 using UnitySimplified;
 
+
 namespace UnitySimplifiedEditor
 {
     [CustomPropertyDrawer(typeof(VisualStatement.Condition))]
@@ -16,6 +17,7 @@ namespace UnitySimplifiedEditor
         private readonly RectOffset _border = new RectOffset(7, 7, 8, 12);
         private readonly Dictionary<string, ValueTuple<int, bool, SerializedProperty>> _validTargets = new Dictionary<string, (int, bool, SerializedProperty)>();
         private readonly int _spacing = 4;
+        private bool _cleanup = false;
         private bool _dragged = false;
         private bool _up = false;
         #endregion
@@ -32,22 +34,40 @@ namespace UnitySimplifiedEditor
                 return;
             switch (evt.type)
             {
+                case EventType.MouseDown:
+                    if (evt.button == 0)
+                        _dragged = _up = false;
+                    break;
+
                 case EventType.MouseDrag:
-                    _dragged = true;
+                    if (evt.button == 0)
+                        _dragged = true;
                     break;
 
                 case EventType.MouseUp:
-                    if (_dragged)
-                        _up = true;
-                    else _dragged = _up = false;
+                    if (evt.button == 0)
+                        if (_dragged)
+                            _up = true;
+                        else _dragged = _up = false;
                     break;
 
-                case EventType.Repaint:
+                case EventType.Layout:
+                    if (_cleanup)
+                        _validTargets.Clear();
+
                     if (_up)
                     {
                         _validTargets.Clear();
                         _dragged = _up = false;
                     }
+                    break;
+
+                case EventType.ContextClick:
+                    _cleanup = true;
+                    break;
+
+                case EventType.Repaint:
+                    _cleanup = false;
                     break;
             }
 
