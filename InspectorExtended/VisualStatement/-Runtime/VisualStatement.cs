@@ -13,12 +13,19 @@ namespace UnitySimplified
             OR
         }
 
+        public VisualStatement()
+        {   this.enabled = true;   }
+        public VisualStatement(bool enabled = true)
+        {   this.enabled = enabled;   }
+
         #region FIELDS
+        [SerializeField] private bool enabled = true;
         [SerializeField] private List<Condition> conditions = new List<Condition>();
         [SerializeField] private List<LogicalOperator> logicalOperators = new List<LogicalOperator>();
         #endregion
 
         #region PROPERTIES
+        public bool Enabled { get => enabled; set => enabled = value; }
         public int ConditionsCount => conditions.Count;
         public int OperatorsCount => logicalOperators.Count;
         public int Count => ConditionsCount + OperatorsCount;
@@ -51,6 +58,9 @@ namespace UnitySimplified
         {   return DoIsValid(out _, out _);   }
         public bool GetResult()
         {
+            if (!enabled)
+                return false;
+
             if (!DoIsValid(out int code, out string message))
                 throw new Exception($"Error {code}: {message}");
 

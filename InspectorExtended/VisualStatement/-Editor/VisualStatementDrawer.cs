@@ -37,6 +37,7 @@ namespace UnitySimplifiedEditor
         }
 
         #region FIELDS
+        private readonly Color _guiColorIntensityDiff = new Color(0.15f, 0.15f, 0.125f, 0);
         private readonly int _conditionHeight = 100;
         private readonly int _logicalOperatorHeight = 20;
         private readonly Dictionary<string, ValueTuple<int, ReorderableList>> _reorderableLists = new Dictionary<string, ValueTuple<int, ReorderableList>>();
@@ -45,6 +46,7 @@ namespace UnitySimplifiedEditor
         private bool _up = false;
         private ReorderableList _targetList = null;
         private SerializedProperty _prop;
+        private Color _guiColor = new Color();
         #endregion
 
         #region METHODS
@@ -351,9 +353,13 @@ namespace UnitySimplifiedEditor
         private void DrawHeaderCallback(Rect rect)
         {
             int indent = EditorGUI.indentLevel;
+            float extraSpacing = 2;
+            Rect enabledRect = new Rect(rect.x, rect.y, 14, rect.height);
+            Rect labelRect = new Rect(enabledRect.x + enabledRect.width + extraSpacing, enabledRect.y, rect.width - enabledRect.width - extraSpacing, rect.height);
             EditorGUI.indentLevel = 0;
-            EditorGUI.BeginProperty(rect, GUIContent.none, _prop);
-            EditorGUI.LabelField(rect, _prop != null ? _prop.displayName : "");
+            EditorGUI.PropertyField(enabledRect, _prop.FindPropertyRelative("enabled"), GUIContent.none);
+            EditorGUI.BeginProperty(labelRect, GUIContent.none, _prop);
+            EditorGUI.LabelField(labelRect, _prop != null ? _prop.displayName : "");
             EditorGUI.EndProperty();
             EditorGUI.indentLevel = indent;
         }
@@ -371,6 +377,8 @@ namespace UnitySimplifiedEditor
             Rect operatorRect = new Rect(rect.x + remainderWidth, rect.y + 2, operatorWidth, EditorGUIUtility.singleLineHeight);
 
             GUIStyle operatorStyle = new GUIStyle(EditorStyles.popup) { alignment = TextAnchor.MiddleCenter };
+            _guiColor = GUI.backgroundColor;
+            GUI.backgroundColor = new Color(_guiColor.r - _guiColorIntensityDiff.r, _guiColor.g - _guiColorIntensityDiff.g, _guiColor.b - _guiColorIntensityDiff.b, _guiColor.a - _guiColorIntensityDiff.a);
             switch (element.elementType) 
             {
                 case VisualStatementElement.ElementType.Condition:
@@ -395,6 +403,7 @@ namespace UnitySimplifiedEditor
                     }
                     break;
             }
+            GUI.backgroundColor = _guiColor;
         }
         #endregion
         #endregion
