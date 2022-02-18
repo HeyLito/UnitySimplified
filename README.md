@@ -90,5 +90,5 @@ While having the same capabilities of PlayerPrefs, GamePrefs display and modify 
 ><img src=https://i.imgur.com/cwKr3tQ.gif width="1920"/> <br>
 
 <br></br> 
-And using GamePrefs as publicized fields allows direct references to predetermined GamePrefs (Dynamic GamePrefs).
+And using GamePrefs as publicized fields allows direct reference to predetermined GamePrefs (Dynamic GamePrefs).
 ><img src=https://i.imgur.com/cY5qyJo.gif/> <br>
