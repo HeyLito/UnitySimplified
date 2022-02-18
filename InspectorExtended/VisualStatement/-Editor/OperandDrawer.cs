@@ -119,9 +119,9 @@ namespace UnitySimplifiedEditor
         }
         #endregion
 
-        private PriorityQueue<ValueTuple<string, string, string>, int> GetGenericMenuOptions(UnityObject target, bool displayTarget)
+        private PriorityQueue<int, ValueTuple<string, string, string>> GetGenericMenuOptions(UnityObject target, bool displayTarget)
         {
-            PriorityQueue<ValueTuple<string, string, string>, int> optionInfos = new PriorityQueue<(string, string, string), int>();
+            PriorityQueue<int, ValueTuple<string, string, string>> optionInfos = new PriorityQueue<int, (string, string, string)>();
             foreach (var member in target.GetType().GetMembers(VisualStatementUtility.flags))
             {
                 if (!VisualStatementUtility.MemberisValid(member))
@@ -155,7 +155,7 @@ namespace UnitySimplifiedEditor
                         continue;
                 }
                 indexedPath = $"{target.GetType().Name}.{memberPath}";
-                optionInfos.Insert((indexedPath, contextPath, memberPath), priority);
+                optionInfos.Insert(priority, (indexedPath, contextPath, memberPath));
             }
             return optionInfos;
         }

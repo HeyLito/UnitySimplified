@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
@@ -58,11 +58,11 @@ namespace UnitySimplified.Serialization
         {
             SerializerInfo.Clear();
 
-            var queue = new PriorityQueue<ValueTuple<Type, CustomSerializer>, int>();
+            var queue = new PriorityQueue<int, ValueTuple<Type, CustomSerializer>>();
             foreach (var type in SerializerStorage.Instance.Retrieve()) 
             {
                 var attribute = (CustomSerializer)Attribute.GetCustomAttribute(type, typeof(CustomSerializer));
-                queue.Insert((type, attribute), attribute.priority);
+                queue.Insert(attribute.priority, (type, attribute));
                 //Debug.Log($"Enqueue: {attribute.inspectedType}, {type}, {attribute.priority}");
             }
 
