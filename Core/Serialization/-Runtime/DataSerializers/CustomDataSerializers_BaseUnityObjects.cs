@@ -187,7 +187,7 @@ namespace UnitySimplified.Serialization
                 DataSerializerUtility.SerializeFieldAsset("clip", obj.clip, fieldData);
 
             if (flags.HasFlag(SerializerFlags.RuntimeReferences))
-                DataSerializer.AddPostSerializerAction(delegate { DataSerializerUtility.SerializeFieldReference("camera", obj.targetCamera, fieldData, typeof(UnityObject)); });
+                DataSerializerUtility.AddInitializeReferenceAction(() => DataSerializerUtility.SerializeFieldReference("camera", obj.targetCamera, fieldData, typeof(UnityObject)));
 
             fieldData["isPlaying"] = obj.isPlaying;
             fieldData["time"] = obj.time;
@@ -206,8 +206,8 @@ namespace UnitySimplified.Serialization
             if (flags.HasFlag(SerializerFlags.RuntimeReferences))
             {
                 object reference = null;
-                DataSerializer.AddPostSerializerAction(delegate { DataSerializerUtility.DeserializeFieldReference("camera", out object reference, fieldData, typeof(UnityObject)); });
-                DataSerializer.AddPostSerializerAction(delegate { obj.targetCamera = (Camera)reference; });
+                DataSerializerUtility.AddInitializeReferenceAction(() => DataSerializerUtility.DeserializeFieldReference("camera", out object reference, fieldData, typeof(UnityObject)));
+                DataSerializer.AddPostSerializerAction(() => obj.targetCamera = (Camera)reference);
             }
 
             if (fieldData.TryGetValue("isPlaying", out object isPlaying) && (bool)isPlaying)

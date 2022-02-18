@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using UnityEngine;
 using UnityObject = UnityEngine.Object;
+using System.Linq;
 
 namespace UnitySimplified.Serialization
 {
@@ -30,29 +31,29 @@ namespace UnitySimplified.Serialization
 
 
         #region FIELDS
-
         private static readonly string[] _incompatibleAssemblies = new[] { "UnityEngine" };
         private static bool _modeToggle = true;
+        private static Action _initializeReferencesAction;
         private static Action _deepSerializerAction;
         private static readonly Dictionary<Type, MethodInfo[]> _methodInfoByTypes = new Dictionary<Type, MethodInfo[]>();
         private static readonly CustomSerializerInfo _serializerInfo = new CustomSerializerInfo(new Dictionary<Type, ValueTuple<Type, MethodInfo[]>>(), new List<(Type, Type, MethodInfo[])>());
-
         #endregion
 
 
 
-        #region PROPERTIES_INTERNAL
-
+        #region PROPERTIES
         internal static bool ModeToggle { get => _modeToggle; set => _modeToggle = value; }
+        internal static Action InitializeReferencesAction { get => _initializeReferencesAction; set => _initializeReferencesAction = value; }
         internal static Action PostSerializerAction { get => _deepSerializerAction; set => _deepSerializerAction = value; }
         internal static Dictionary<Type, MethodInfo[]> MethodInfoByTypes { get => _methodInfoByTypes; }
         internal static CustomSerializerInfo SerializerInfo => _serializerInfo;
-
         #endregion
 
 
 
         #region FUNCTIONS_INTERNAL
+        public static void AddInitializeReferenceAction(Action action)
+        {   _initializeReferencesAction += action;   }
 
         internal static void PopulateSerializerInfo()
         {
@@ -77,8 +78,7 @@ namespace UnitySimplified.Serialization
                 //Debug.Log($"Dequeue: {tuple.Item2.inspectedType}, {tuple.Item1}, {tuple.Item2.priority}");
             }
         }
-
-#endregion
+        #endregion
 
 
 
@@ -135,7 +135,7 @@ namespace UnitySimplified.Serialization
         public static bool DeserializeFieldReference(string fieldName, out object referenceObject, Dictionary<string, object> fieldData, Type typeIndexer)
         {
             if (fieldData.TryGetValue(fieldName, out object fieldValue) && fieldValue is string stringValue)
-                if (ReferenceStorage.Instance.TryGetObject(stringValue, typeIndexer, out referenceObject)) 
+                if (ReferenceStorage.Instance.TryGetObject(stringValue, typeIndexer, out referenceObject))
                     return true;
             referenceObject = null;
             return false;
@@ -150,13 +150,14 @@ namespace UnitySimplified.Serialization
             FieldInfo[] fields = instance.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
             foreach (var field in fields)
             {
-                if (field == null || field.FieldType.GetCustomAttributes(typeof(DontSaveField), true).Length > 0)
+                if (field == null || field.GetCustomAttributes(typeof(NonSerializedAttribute), true).Length > 0 || field.FieldType.GetCustomAttributes(typeof(DontSaveField), true).Length > 0)
                     continue;
+
                 object fieldValue = field.GetValue(instance);
 
                 if (flags.HasFlag(SerializerFlags.AssetReferences) && SerializeFieldAsset(field.Name, fieldValue, fieldData)) { }
-                else if (flags.HasFlag(SerializerFlags.RuntimeReferences) && fieldValue is UnityObject) 
-                    DataSerializer.AddPostSerializerAction(delegate { SerializeFieldReference(field.Name, fieldValue, fieldData, typeof(UnityObject)); });
+                else if (flags.HasFlag(SerializerFlags.RuntimeReferences) && fieldValue is UnityObject)
+                    AddInitializeReferenceAction(() => SerializeFieldReference(field.Name, fieldValue, fieldData, typeof(UnityObject)));
                 else if (flags.HasFlag(SerializerFlags.GenericVariables) && FieldIsSerializable(field, DataSerializer.SurrogateSelector))
                     fieldData[field.Name] = fieldValue;
             }
@@ -176,7 +177,7 @@ namespace UnitySimplified.Serialization
                 if (flags.HasFlag(SerializerFlags.AssetReferences) && DeserializeFieldAsset(field.Name, ref asset, fieldData))
                     field.SetValue(instance, asset);
                 else if (flags.HasFlag(SerializerFlags.RuntimeReferences) && field.FieldType != typeof(string) && dataValue is string)
-                    DataSerializer.AddPostSerializerAction(delegate { if (DeserializeFieldReference(field.Name, out object unityObject, fieldData, typeof(UnityObject))) field.SetValue(instance, unityObject); });
+                    AddInitializeReferenceAction(delegate { if (DeserializeFieldReference(field.Name, out object unityObject, fieldData, typeof(UnityObject))) field.SetValue(instance, unityObject); });
                 else if (flags.HasFlag(SerializerFlags.GenericVariables) && FieldIsSerializable(field, DataSerializer.SurrogateSelector))
                     field.SetValue(instance, dataValue);
             }
@@ -188,7 +189,7 @@ namespace UnitySimplified.Serialization
         #region FUNCTIONS_HELPER
         public static bool FieldIsSerializable(FieldInfo fieldInfo, SurrogateSelector surrogateSelector)
         {
-            if (fieldInfo.Attributes.HasFlag(FieldAttributes.NotSerialized))
+            if (fieldInfo.IsNotSerialized)
                 return false;
             else if (surrogateSelector != null && surrogateSelector.GetSurrogate(fieldInfo.FieldType, new StreamingContext(StreamingContextStates.All), out _) != null)
                 return true;
