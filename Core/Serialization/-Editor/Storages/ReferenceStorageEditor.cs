@@ -23,6 +23,8 @@ namespace UnitySimplifiedEditor.Serialization
             if (wrappedRefs.Count > 0)
             {
                 EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button("Cleanup"))
+                    wrappedRefs.Clear();
                 GUILayout.FlexibleSpace();
                 _search = EditorGUILayout.TextField(_search, GUI.skin.FindStyle("ToolbarSeachTextField"));
                 if (_search.Length > 0 && GUILayout.Button("", GUI.skin.FindStyle("ToolbarSeachCancelButton")))
@@ -34,7 +36,6 @@ namespace UnitySimplifiedEditor.Serialization
             }
 
             Color color = GUI.backgroundColor;
-            //GUI.backgroundColor -= new Color(0.35f, 0.35f, 0.35f, 0);
             EditorGUILayout.BeginVertical(Box);
             GUI.backgroundColor = color;
             foreach (var reference in wrappedRefs)
@@ -53,7 +54,6 @@ namespace UnitySimplifiedEditor.Serialization
                             EditorGUI.indentLevel++;
                             EditorGUILayout.LabelField($"<b>{(pair.Value != null ? pair.Value : "NULL")}</b>", UnityObjectStyle);
                             EditorGUI.indentLevel--;
-
                         }
                         //Rect rect = EditorGUILayout.BeginHorizontal("Button");
                         //if (GUI.Button(rect, GUIContent.none, EditorStyles.textField) && values[i] != null)
