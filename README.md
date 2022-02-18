@@ -6,6 +6,7 @@ A collection of multi-purposed unity C# scripts assembled to fast forward the in
  - [Features](#features)
 	- [Data Management](#data-management)
 	- [VisualStatement](#visualstatement)
+	- [GamePrefs](#gameprefs)
 
 ## Features
 ### Data Management
@@ -77,3 +78,17 @@ Conditions compare the values of two operands using a relational operator. Depen
 >
 >If the condition is in the proper structure, then `==` and `!=` relational operators are available to select. <br>
 >If proper and both operands are of number type, then `==`, `!=`, `>`, `>=`, `<`, and `<=`, relational operators are available to select.
+
+
+<br></br>
+### GamePrefs
+GamePrefs are the visual alternative to Unity's [PlayerPrefs](https://docs.unity3d.com/ScriptReference/PlayerPrefs.html).
+><img src=https://i.imgur.com/bsdzdTW.png/> <br>
+
+<br></br> 
+While having the same capabilities of PlayerPrefs, GamePrefs display and modify persistent data within the UnityEditor. 
+><img src=https://i.imgur.com/cwKr3tQ.gif width="1920"/> <br>
+
+<br></br> 
+And using GamePrefs as publicized fields allows direct references to predetermined GamePrefs (Dynamic GamePrefs).
+><img src=https://i.imgur.com/cY5qyJo.gif/> <br>
