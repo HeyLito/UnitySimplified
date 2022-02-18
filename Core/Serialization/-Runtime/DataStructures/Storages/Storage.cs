@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 
 namespace UnitySimplified.Serialization
@@ -42,41 +42,35 @@ namespace UnitySimplified.Serialization
                 storageWasInstanced = true;
             }
 
-            #if UNITY_EDITOR
-            if (storageWasInstanced && !storage.SaveAsFile)
+            if (storageWasInstanced && storage)
             {
-                string[] resourcePaths = System.IO.Directory.GetDirectories("Assets", "Resources", System.IO.SearchOption.AllDirectories);
-                string resourcePath;
-                if (resourcePaths.Length > 0)
-                    resourcePath = resourcePaths[0];
-                else
+                #if UNITY_EDITOR
+                if (!storage.SaveAsFile)
                 {
-                    resourcePath = System.IO.Path.Combine("Assets", "Resources");
-                    System.IO.Directory.CreateDirectory(resourcePath);
+                    string[] resourcePaths = System.IO.Directory.GetDirectories("Assets", "Resources", System.IO.SearchOption.AllDirectories);
+                    string resourcePath;
+                    if (resourcePaths.Length > 0)
+                        resourcePath = resourcePaths[0];
+                    else
+                    {
+                        resourcePath = System.IO.Path.Combine("Assets", "Resources");
+                        System.IO.Directory.CreateDirectory(resourcePath);
+                    }
+
+                    string path = $"{System.IO.Path.Combine(resourcePath, typeof(T).Name)}.asset";
+                    AssetDatabase.CreateAsset(storage, path);
+                    AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+                    AssetDatabase.Refresh();
                 }
+                #endif
+                if (storage.SaveAsFile)
+                {
+                    DataManager.LoadFileDatabase(FileFormat.JSON);
+                    if (!DataManager.LoadFromFile(storage.GetType().Name, storage))
+                        DataManager.CreateNewFile(storage.GetType().Name, storage, FileFormat.JSON);
 
-                string path = $"{System.IO.Path.Combine(resourcePath, typeof(T).Name)}.asset";
-                AssetDatabase.CreateAsset(storage, path);
-                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
-                AssetDatabase.Refresh();
-
-                //string name = "Standard Graph.asset";
-                //string folderPath = AssetDatabase.GetAssetPath(Selection.activeInstanceID);
-                //string assetPath;
-                //if (folderPath.Contains("."))
-                //    folderPath = folderPath.Remove(folderPath.LastIndexOf('/'));
-                //assetPath = AssetDatabase.GenerateUniqueAssetPath(Path.Combine(folderPath, name));
-
-                //ProjectWindowUtil.CreateAsset(storage, assetPath);
-            }
-            #endif
-            if (storage && storage.SaveAsFile)
-            {
-                DataManager.LoadFileDatabase(FileFormat.JSON);
-                if (!DataManager.LoadFromFile(storage.GetType().Name, storage)) 
-                    DataManager.CreateNewFile(storage.GetType().Name, storage, FileFormat.JSON);
-
-                Application.quitting += storage.AttemptToSave;
+                    Application.quitting += storage.AttemptToSave;
+                }
             }
             return storage;
         }

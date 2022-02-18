@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Runtime.Serialization;
 using UnityEngine;
+using Newtonsoft.Json;
 
 namespace UnitySimplified.Serialization
 {
@@ -136,7 +137,7 @@ namespace UnitySimplified.Serialization
         {   TargetDataPath = DefaultPath;   }
 
         /// <summary>
-        /// Loads all files of appropriate FileFormat within the TargetDataPath directory.
+        /// Loads all files of applicable <see cref="FileFormat"/> within the <see cref="TargetDataPath"/> directory.
         /// </summary>
         /// <param name="clearDatabases">
         /// </param>
@@ -175,8 +176,7 @@ namespace UnitySimplified.Serialization
         /// <returns></returns>
         public static bool CreateNewFile<T>(string fileName, string subPath, T obj, FileFormat fileFormat)
         {
-            if (_fileContainers.TryGetValue(fileFormat, out FileInfoContainer container)) { }
-            else
+            if (!_fileContainers.TryGetValue(fileFormat, out FileInfoContainer container))
             {
                 RunDebugger(10, fileName, fileFormat);
                 return false;
@@ -196,7 +196,12 @@ namespace UnitySimplified.Serialization
                     switch (fileFormat)
                     {
                         case FileFormat.JSON:
-                            string dataAsJson = JsonUtility.ToJson(obj, true);
+                            #region IF USING NEWTONSOFT
+                            string dataAsJson = JsonConvert.SerializeObject(obj, typeof(T), Formatting.Indented, null);
+                            #endregion
+                            #region IF NOT
+                            //string dataAsJson = JsonUtility.ToJson(obj, true);
+                            #endregion
                             File.WriteAllText(fileInfo.FullName, dataAsJson);
                             container.files.Add(fileInfo);
                             break;
@@ -241,7 +246,12 @@ namespace UnitySimplified.Serialization
                 switch (container.fileFormat)
                 {
                     case FileFormat.JSON:
-                        string dataAsJson = JsonUtility.ToJson(obj, true);
+                        #region IF USING NEWTONSOFT
+                        string dataAsJson = JsonConvert.SerializeObject(obj, typeof(T), Formatting.Indented, null);
+                        #endregion
+                        #region IF NOT
+                        //string dataAsJson = JsonUtility.ToJson(obj, true);
+                        #endregion
                         File.WriteAllText(fileInfo.FullName, dataAsJson);
                         break;
 
@@ -277,7 +287,12 @@ namespace UnitySimplified.Serialization
                 {
                     case FileFormat.JSON:
                         string dataFromJson = File.ReadAllText(fileInfo.FullName);
-                        JsonUtility.FromJsonOverwrite(dataFromJson, obj);
+                        #region IF USING NEWTONSOFT
+                        FromObjectOverwrite(JsonConvert.DeserializeObject(dataFromJson, typeof(T)), obj);
+                        #endregion
+                        #region IF NOT
+                        //JsonUtility.FromJsonOverwrite(dataFromJson, obj);
+                        #endregion
                         break;
 
                     case FileFormat.Binary:
@@ -296,7 +311,7 @@ namespace UnitySimplified.Serialization
             RunDebugger(30, fileName);
             return false;
         }
-        
+
         /// <summary>
         /// Searches the loaded databases for an existing file with the identical name and removes it from the filesystem.
         /// </summary>
@@ -370,6 +385,16 @@ namespace UnitySimplified.Serialization
         }
 
         #region UTILITY
+        public static bool ContainsFile(string fileName, out string filePath)
+        {
+            filePath = "";
+            if (FindFileFromDatabase(fileName, out _, out FileInfo fileInfo) && fileInfo.Exists)
+            {
+                filePath = fileInfo.FullName;
+                return true;
+            }
+            else return false;
+        }
         private static bool FindFileFromDatabase(string fileName, out FileInfoContainer container, out FileInfo fileInfo)
         {
             foreach (var pair in _fileContainers)
@@ -572,48 +597,6 @@ namespace UnitySimplified.Serialization
             Debug.Log(output);
         }
         #endregion
-
-        //public static void CreateNewFileFromPath<T>(string path, T file, FileFormat fileFormat) 
-        //{
-        //    FileInfo fileInfo = new FileInfo(path);
-        //    if (Directory.Exists(fileInfo.Directory.FullName) && !File.Exists(fileInfo.FullName))
-        //    {
-        //        switch (fileFormat)
-        //        {
-        //            case FileFormat.JSON:
-        //                string dataAsJson = JsonUtility.ToJson(file, true);
-        //                File.WriteAllText(fileInfo.FullName, dataAsJson);
-        //                break;
-
-        //            case FileFormat.Binary:
-        //                FileStream fileStream = new FileStream(fileInfo.FullName, FileMode.Create);
-        //                BinaryFormatter binaryFormatter = new BinaryFormatter();
-        //                binaryFormatter.SurrogateSelector = SurrogateSelector;
-        //                binaryFormatter.Serialize(fileStream, file);
-        //                fileStream.Close();
-        //                break;
-        //        }
-        //    }
-        //}
-
-        //public static void OverwriteFileFromPath<T>(string path, T file, FileFormat fileFormat) 
-        //{
-        //    switch (fileFormat)
-        //    {
-        //        case FileFormat.JSON:
-        //            string dataAsJson = JsonUtility.ToJson(file, true);
-        //            File.WriteAllText(path, dataAsJson);
-        //            break;
-
-        //        case FileFormat.Binary:
-        //            BinaryFormatter binaryFormatter = new BinaryFormatter();
-        //            FileStream fileStream = new FileStream(path, FileMode.Create);
-        //            binaryFormatter.SurrogateSelector = SurrogateSelector;
-        //            binaryFormatter.Serialize(fileStream, file);
-        //            fileStream.Close();
-        //            break;
-        //    }
-        //}
         #endregion
     }
 }

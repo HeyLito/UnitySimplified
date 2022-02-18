@@ -28,7 +28,7 @@ namespace UnitySimplified.Serialization
         };
 
         public KeyedAssetsDictionary KeyedAssets => keyedAssets;
-        protected override bool SaveAsFile => true;
+        protected override bool SaveAsFile => false;
 
 
         public bool StoreAsset(UnityObject assetObject, out string key)
