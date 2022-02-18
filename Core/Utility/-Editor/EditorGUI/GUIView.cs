@@ -24,7 +24,8 @@ namespace UnitySimplifiedEditor
             repaintImmediatelyInfo = guiViewType.GetMethod("RepaintImmediately", BindingFlags.Public | BindingFlags.Instance);
             
             var actualView = hostView.GetProperty("actualView", BindingFlags.NonPublic | BindingFlags.Instance);
-            current = (EditorWindow)actualView.GetValue(currentInfo.GetValue(null, null), null);
+            if (actualView != null && currentInfo != null)
+                current = (EditorWindow)actualView.GetValue(currentInfo.GetValue(null, null), null);
         }
 
         public static void RepaintImmediately()
