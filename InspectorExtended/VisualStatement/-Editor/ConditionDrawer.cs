@@ -14,13 +14,16 @@ namespace UnitySimplifiedEditor
     public class ConditionDrawer: PropertyDrawer
     {
         #region FIELDS
-        private readonly PropertyDrawerElementFilter<bool> _validTargets = new PropertyDrawerElementFilter<bool>();
         private readonly RectOffset _border = new RectOffset(7, 7, 8, 12);
+        private readonly Dictionary<string, ValueTuple<int, bool, SerializedProperty>> _validTargets = new Dictionary<string, (int, bool, SerializedProperty)>();
         private readonly int _spacing = 4;
+        private bool _cleanup = false;
+        private bool _dragged = false;
+        private bool _up = false;
         #endregion
 
         #region METHODS
-        #region METHODS-PROPERTYDRAWER
+        #region PROPERTY_DRAWER
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {   return base.GetPropertyHeight(property, label) * 3 + _border.top + _border.bottom + 12;   }
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
@@ -29,8 +32,44 @@ namespace UnitySimplifiedEditor
             Event evt = Event.current;
             if (condition == null)
                 return;
+            switch (evt.type)
+            {
+                case EventType.MouseDown:
+                    if (evt.button == 0)
+                        _dragged = _up = false;
+                    break;
 
-            _validTargets.EvaluateGUIEventChanges(evt);
+                case EventType.MouseDrag:
+                    if (evt.button == 0)
+                        _dragged = true;
+                    break;
+
+                case EventType.MouseUp:
+                    if (evt.button == 0)
+                        if (_dragged)
+                            _up = true;
+                        else _dragged = _up = false;
+                    break;
+
+                case EventType.Layout:
+                    if (_cleanup)
+                        _validTargets.Clear();
+
+                    if (_up)
+                    {
+                        _validTargets.Clear();
+                        _dragged = _up = false;
+                    }
+                    break;
+
+                case EventType.ContextClick:
+                    _cleanup = true;
+                    break;
+
+                case EventType.Repaint:
+                    _cleanup = false;
+                    break;
+            }
 
             var lhsProp = property.FindPropertyRelative("lhs");
             var rhsProp = property.FindPropertyRelative("rhs");
@@ -39,7 +78,7 @@ namespace UnitySimplifiedEditor
             var lhsValuePath = lhsProp.FindPropertyRelative("valuePath").stringValue;
             var rhsValueReferenceType = (VisualStatement.Operand.ReferenceType)rhsProp.FindPropertyRelative("referenceType").enumValueIndex;
             var rhsValuePath = rhsProp.FindPropertyRelative("valuePath").stringValue;
-            bool isValid = _validTargets.GetFilteredElement(property, condition.IsValid);
+            bool isValid = CheckIfTargetIsValid(property);
             int controlID = GUIUtility.GetControlID(FocusType.Keyboard);
             int indent = EditorGUI.indentLevel;
             float operatorWidth = isValid ? position.width * 0.05f + 35 : 0;
@@ -79,7 +118,7 @@ namespace UnitySimplifiedEditor
             if (EditorGUI.EndChangeCheck()/* || Event.current.commandName == PopupInfo.commandMessage*/)
             {
                 HandleOperandChange(lhsProp, lhsValueReferenceType, lhsValuePath, rhsProp, rhsValueReferenceType);
-                _validTargets.SetElement(property, condition.IsValid);
+                InitializeTargetValidation(property);
             }
 
             EditorGUI.BeginChangeCheck();
@@ -90,7 +129,7 @@ namespace UnitySimplifiedEditor
             if (EditorGUI.EndChangeCheck() || popupIndex != operatorProp.enumValueIndex)
             {
                 operatorProp.enumValueIndex = popupIndex;
-                _validTargets.SetElement(property, condition.IsValid);
+                InitializeTargetValidation(property);
             }
             EditorGUI.EndProperty();
 
@@ -99,7 +138,7 @@ namespace UnitySimplifiedEditor
             if (EditorGUI.EndChangeCheck()/* || Event.current.commandName == PopupInfo.commandMessage*/)
             {
                 HandleOperandChange(rhsProp, rhsValueReferenceType, rhsValuePath, lhsProp, lhsValueReferenceType);
-                _validTargets.SetElement(property, condition.IsValid);
+                InitializeTargetValidation(property);
             }
 
             if (evt.type == EventType.MouseDown)
@@ -114,6 +153,50 @@ namespace UnitySimplifiedEditor
         }
         #endregion
 
+        private bool CheckIfTargetIsValid(SerializedProperty property)
+        {
+            //if (_validTargets.TryGetValue(property.propertyPath, out (bool, bool, SerializedProperty) value))
+            //    return value.Item1;
+            //else return InitializeTargetValidation(property);
+
+            bool removeUnused = false;
+            bool valid;
+            if (_validTargets.TryGetValue(property.propertyPath, out (int, bool, SerializedProperty) tuple))
+            {
+                if (tuple.Item1 > 1)
+                    removeUnused = true;
+                _validTargets[property.propertyPath] = (tuple.Item1 + 1, tuple.Item2, tuple.Item3);
+                valid = tuple.Item2;
+            }
+            else valid = InitializeTargetValidation(property);
+
+            if (removeUnused)
+            {
+                List<string> unused = new List<string>();
+                List<string> used = new List<string>();
+                foreach (var pair in _validTargets)
+                {
+                    if (pair.Value.Item1 == 0)
+                        unused.Add(pair.Key);
+                    else used.Add(pair.Key);
+                }
+
+                for (int i = 0; i < unused.Count; i++)
+                    _validTargets.Remove(unused[i]);
+                for (int i = 0; i < used.Count; i++)
+                {
+                    ValueTuple<int, bool, SerializedProperty> indexedTuple = _validTargets[used[i]];
+                    _validTargets[used[i]] = (0, indexedTuple.Item2, indexedTuple.Item3);
+                }
+            }
+            return valid;
+        }
+        private bool InitializeTargetValidation(SerializedProperty property)
+        {
+            bool valid = (property.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement.Condition).IsValid();
+            _validTargets[property.propertyPath] = (0, valid, property);
+            return valid;
+        }
         private void HandleOperandChange(SerializedProperty targetProp, VisualStatement.Operand.ReferenceType targetRefType, string targetOldPath, SerializedProperty otherProp, VisualStatement.Operand.ReferenceType otherRefType) 
         {
             var targetOperand = targetProp.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement.Operand;

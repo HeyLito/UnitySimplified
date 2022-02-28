@@ -37,10 +37,13 @@ namespace UnitySimplifiedEditor
         }
 
         #region FIELDS
-        private readonly PropertyDrawerElementFilter<ReorderableList> _reorderableLists = new PropertyDrawerElementFilter<ReorderableList>();
         private readonly Color _guiColorIntensityDiff = new Color(0.15f, 0.15f, 0.125f, 0);
         private readonly int _conditionHeight = 100;
         private readonly int _logicalOperatorHeight = 20;
+        private readonly Dictionary<string, ValueTuple<int, ReorderableList>> _reorderableLists = new Dictionary<string, ValueTuple<int, ReorderableList>>();
+        private bool _cleanup = false;
+        private bool _dragged = false;
+        private bool _up = false;
         private ReorderableList _targetList = null;
         private SerializedProperty _prop;
         private Color _guiColor = new Color();
@@ -61,9 +64,49 @@ namespace UnitySimplifiedEditor
             int controlID = GUIUtility.GetControlID(FocusType.Keyboard);
             _prop = property;
 
-            _reorderableLists.EvaluateGUIEventChanges(evt);
-            _reorderableLists.InvokeActionIfChanged(() => ValidatePropertyArrays(_prop));
-            _targetList = _reorderableLists.GetFilteredElement(_prop, RecontructList(_prop));
+            switch (evt.type)
+            {
+                case EventType.MouseDown:
+                    if (evt.button == 0)
+                        _dragged = _up = false;
+                    break;
+
+                case EventType.MouseDrag:
+                    if (evt.button == 0)
+                        _dragged = true;
+                    break;
+
+                case EventType.MouseUp:
+                    if (evt.button == 0)
+                        if (_dragged)
+                            _up = true;
+                        else _dragged = _up = false;
+                    break;
+
+
+                case EventType.Layout:
+                    if (_cleanup)
+                    {
+                        ValidatePropertyArrays(_prop);
+                        _reorderableLists.Clear();
+                    }
+                    if (_up)
+                    {
+                        _reorderableLists.Clear();
+                        _dragged = _up = false;
+                    }
+                    break;
+
+                case EventType.ContextClick:
+                    _cleanup = true;
+                    break;
+
+                case EventType.Repaint:
+                    _cleanup = false;
+                    break;
+            }
+
+            _targetList = HandleListCollection(_prop);
             if (_targetList != null)
             {
                 _targetList.DoList(position);
@@ -81,6 +124,8 @@ namespace UnitySimplifiedEditor
         }
         #endregion
 
+        private ReorderableList SetListToCollection(SerializedProperty property)
+        {   ReorderableList list = RecontructList(property); _reorderableLists[$"{property.serializedObject.targetObject.name}.{property.propertyPath}"] = (0, list); return list;   }
         private ReorderableList RecontructList(SerializedProperty property)
         {
             List<VisualStatementElement> visualElementList = CreateListOfElements(property);
@@ -114,7 +159,7 @@ namespace UnitySimplifiedEditor
                 logicalOperatorsProp.serializedObject.ApplyModifiedProperties();
                 logicalOperatorsProp.serializedObject.Update();
             }
-            _reorderableLists.SetElement(property, RecontructList(property));
+            SetListToCollection(property);
         }
 
         private void HandleReorderSwap(SerializedProperty property, ReorderableList list, int oldIndex, int newIndex)
@@ -146,7 +191,41 @@ namespace UnitySimplifiedEditor
             arrayList[conditionsNewIndex] = oldIndexedValue;
             arrayInfo.SetValue(visualStatement, arrayList);
         }
+        private ReorderableList HandleListCollection(SerializedProperty property)
+        {
+            ReorderableList list;
+            bool removeUnused = false;
 
+            if (_reorderableLists.TryGetValue($"{property.serializedObject.targetObject.name}.{property.propertyPath}", out (int, ReorderableList) tuple))
+            {
+                if (tuple.Item1 > 1)
+                    removeUnused = true;
+                _reorderableLists[$"{property.serializedObject.targetObject.name}.{property.propertyPath}"] = (tuple.Item1 + 1, tuple.Item2);
+                list = tuple.Item2;
+            }
+            else list = SetListToCollection(property);
+
+            if (removeUnused)
+            {
+                List<string> unused = new List<string>();
+                List<string> used = new List<string>();
+                foreach (var pair in _reorderableLists)
+                {
+                    if (pair.Value.Item1 == 0)
+                        unused.Add(pair.Key);
+                    else used.Add(pair.Key);
+                }
+
+                for (int i = 0; i < unused.Count; i++)
+                    _reorderableLists.Remove(unused[i]);
+                for (int i = 0; i < used.Count; i++)
+                {
+                    ValueTuple<int, ReorderableList> indexedTuple = _reorderableLists[used[i]];
+                    _reorderableLists[used[i]] = (0, indexedTuple.Item2);
+                }
+            }
+            return list;
+        }
         private List<VisualStatementElement> CreateListOfElements(SerializedProperty serializedProperty)
         {
             List<VisualStatementElement> list = new List<VisualStatementElement>();
@@ -205,7 +284,7 @@ namespace UnitySimplifiedEditor
             _prop.serializedObject.Update();
             EditorUtility.SetDirty(_prop.serializedObject.targetObject);
 
-            _reorderableLists.SetElement(_prop, RecontructList(_prop));
+            SetListToCollection(_prop);
         }
         private void SelectCallback(ReorderableList list)
         {
@@ -236,7 +315,7 @@ namespace UnitySimplifiedEditor
             _prop.serializedObject.ApplyModifiedProperties();
             _prop.serializedObject.Update();
 
-            _reorderableLists.SetElement(_prop, RecontructList(_prop));
+            SetListToCollection(_prop);
         }
         private void RemoveCallback(ReorderableList list)
         {
@@ -267,7 +346,7 @@ namespace UnitySimplifiedEditor
                 _prop.serializedObject.ApplyModifiedProperties();
                 _prop.serializedObject.Update();
 
-                _reorderableLists.RemoveElement(_prop);
+                _reorderableLists.Remove($"{_prop.serializedObject.targetObject.name}.{_prop.propertyPath}");
             }
 
         }
