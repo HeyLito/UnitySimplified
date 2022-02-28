@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+#if UNITY_EDITOR
+using UnitySimplifiedEditor;
+#endif
 
 namespace UnitySimplified.Serialization
 {
@@ -214,30 +217,35 @@ namespace UnitySimplified.Serialization
                 validTransputs[i].LoadValue();
         }
         public void SetTargetIndex(int index)
-        { targetTransputIndex = index; }
+        {   targetTransputIndex = index;   }
         public void SetValue(bool value)
-        { DoSetValue(value, true); }
+        {   DoSetValue(value, true);   }
         public void SetValue(int value)
-        { DoSetValue(value, true); }
+        {   DoSetValue(value, true);   }
         public void SetValue(float value)
-        { DoSetValue(value, true); }
+        {   DoSetValue(value, true);   }
         public void SetValue(string value)
-        { DoSetValue(value, true); }
+        {   DoSetValue(value, true);   }
         public void SetValue(object value)
-        { DoSetValue(value, true); }
+        {   DoSetValue(value, true);   }
         public void SetValueWithoutNotify(bool value)
-        { DoSetValue(value, false); }
+        {   DoSetValue(value, false);   }
         public void SetValueWithoutNotify(int value)
-        { DoSetValue(value, false); }
+        {   DoSetValue(value, false);   }
         public void SetValueWithoutNotify(float value)
-        { DoSetValue(value, false); }
+        {   DoSetValue(value, false);   }
         public void SetValueWithoutNotify(string value)
-        { DoSetValue(value, false); }
+        {   DoSetValue(value, false);   }
         public void SetValueWithoutNotify(object value)
-        { DoSetValue(value, false); }
+        {   DoSetValue(value, false);   }
 
         private void DoSetValue(object value, bool notify)
         {
+            #if UNITY_EDITOR
+            if (UnityObjectUtility.IsObjectInPrefabEdit(this))
+                return;
+
+            #endif
             foreach (var transput in GetTransputs(value))
                 transput.SetValue(value, notify);
         }

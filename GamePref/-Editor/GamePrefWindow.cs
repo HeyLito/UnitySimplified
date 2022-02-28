@@ -316,10 +316,10 @@ namespace UnitySimplifiedEditor.Serialization
             { return $"<color=#68c4ac>{text}</color>"; }
             string methodTextColor(string text)
             { return $"<color=#e0dcac>{text}</color>"; }
-            string operatorTextColor(string text)
-            { return $"<color=#6894d4>{text}</color>"; }
-            string localVariableTextColor(string text)
-            { return $"<color=#a8dcfc>{text}</color>"; }
+            //string operatorTextColor(string text)
+            //{ return $"<color=#6894d4>{text}</color>"; }
+            //string localVariableTextColor(string text)
+            //{ return $"<color=#a8dcfc>{text}</color>"; }
 
 
             EditorGUILayout.Space(2);

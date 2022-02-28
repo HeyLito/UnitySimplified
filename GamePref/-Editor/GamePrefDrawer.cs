@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 
 using System.Reflection;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
@@ -11,7 +12,7 @@ namespace UnitySimplifiedEditor.Serialization
     [CustomPropertyDrawer(typeof(GamePref))]
     public class GamePrefDrawer : PropertyDrawer
     {
-        private readonly Dictionary<string, (int, int)> _menuSelectionsByPaths = new Dictionary<string, (int, int)>();
+        private readonly PropertyDrawerElementFilter<(int, int)> _menuSelections = new PropertyDrawerElementFilter<(int, int)>();
         private GamePrefStorage _storage = null;
         private GUIStyle _objectFieldStyle = null;
         private GUIStyle _objectFieldButtonStyle = null;
@@ -33,21 +34,24 @@ namespace UnitySimplifiedEditor.Serialization
 
             var sortedPrefs = new List<KeyValuePair<string, GamePrefData>>(_storage.GetGamePrefs());
 
-            Event evt = Event.current;
-            GamePref pref = property.ExposeProperty(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic) as GamePref;
+            (FieldInfo, object) gamePrefInfoTuple = property.ExposePropertyInfo(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, out int arrayIndex);
+            GamePref gamePref = (arrayIndex > -1 ? (gamePrefInfoTuple.Item1.GetValue(gamePrefInfoTuple.Item2)as IList)[arrayIndex] : gamePrefInfoTuple.Item1.GetValue(gamePrefInfoTuple.Item2)) as GamePref;
             GamePrefData gamePrefData = null;
+            Event evt = Event.current;
+
+            if (arrayIndex > -1 && label.text == gamePref.PersistentIdentifier)
+                label.text = $"Element {arrayIndex}";
+
             Rect fieldRect = EditorGUI.PrefixLabel(position, label);
             Rect buttonRect = new Rect(fieldRect.x + fieldRect.width - 1 - 18, fieldRect.y + 1, 18, 16);
-            bool hasID = pref != null && _storage.HasID(pref.PersistentIdentifier, out gamePrefData);
+            bool hasID = gamePref != null && _storage.HasID(gamePref.PersistentIdentifier, out gamePrefData);
             int controlID = GUIUtility.GetControlID(FocusType.Keyboard);
             int currentIndex = -2, selectedIndex = -2;
-            if (_menuSelectionsByPaths.TryGetValue(property.propertyPath, out (int, int) tuple))
-            {
-                currentIndex = tuple.Item1;
-                selectedIndex = tuple.Item2;
-            }
-            else _menuSelectionsByPaths[property.propertyPath] = (-2, -2);
 
+            _menuSelections.EvaluateGUIEventChanges(evt);
+            var output = _menuSelections.GetFilteredElement(property, (-2, -2));
+            currentIndex = output.Item1;
+            selectedIndex = output.Item2;
 
             switch (evt.type)
             {
@@ -57,7 +61,7 @@ namespace UnitySimplifiedEditor.Serialization
                         if (buttonRect.Contains(evt.mousePosition))
                         {
                             GenericMenu options = new GenericMenu();
-                            options.AddItem(new GUIContent("None"), pref == null, () => _menuSelectionsByPaths[property.propertyPath] = (currentIndex, -1));
+                            options.AddItem(new GUIContent("None"), gamePref == null, () => _menuSelections.SetElement(property, (currentIndex, -1)));
                             if (sortedPrefs.Count > 0)
                                 options.AddSeparator("");
 
@@ -65,9 +69,9 @@ namespace UnitySimplifiedEditor.Serialization
                             for (int i = 0; i < sortedPrefs.Count; i++)
                             {
                                 int index = i;
-                                currentIndex = pref != null && pref.PersistentIdentifier == sortedPrefs[i].Value.persistentIdentifier ? index : currentIndex;
-                                options.AddItem(new GUIContent(sortedPrefs[i].Value.prefKey), currentIndex == index, () => _menuSelectionsByPaths[property.propertyPath] = (currentIndex, index));
-                                _menuSelectionsByPaths[property.propertyPath] = (currentIndex, selectedIndex);
+                                currentIndex = gamePref != null && gamePref.PersistentIdentifier == sortedPrefs[i].Value.persistentIdentifier ? index : currentIndex;
+                                options.AddItem(new GUIContent(sortedPrefs[i].Value.prefKey), currentIndex == index, () => _menuSelections.SetElement(property, (currentIndex, index)));
+                                _menuSelections.SetElement(property, (currentIndex, selectedIndex));
                             }
                             options.DropDown(fieldRect);
                             break;
@@ -87,7 +91,7 @@ namespace UnitySimplifiedEditor.Serialization
                 case EventType.KeyDown:
                     break;
                 case EventType.Repaint:
-                    string labelText = pref != null ? hasID ? $"{gamePrefData.prefKey} ({typeof(GamePref).Name})" : $"Missing ({typeof(GamePref).Name})" : $"None ({typeof(GamePref).Name})";
+                    string labelText = gamePref != null ? hasID ? $"{gamePrefData.prefKey} ({typeof(GamePref).Name})" : $"Missing ({typeof(GamePref).Name})" : $"None ({typeof(GamePref).Name})";
                     ObjectFieldStyle.Draw(fieldRect, new GUIContent(labelText), fieldRect.Contains(evt.mousePosition), false, false, controlID == GUIUtility.keyboardControl);
                     ObjectFieldButtonStyle.Draw(buttonRect, GUIContent.none, buttonRect.Contains(evt.mousePosition), false, false, false);
                     break;
@@ -110,7 +114,7 @@ namespace UnitySimplifiedEditor.Serialization
                     property.serializedObject.ApplyModifiedProperties();
                     property.serializedObject.Update();
                 }
-                _menuSelectionsByPaths[property.propertyPath] = (selectedIndex, selectedIndex);
+                _menuSelections.SetElement(property, (selectedIndex, selectedIndex));
             }
         }
     }

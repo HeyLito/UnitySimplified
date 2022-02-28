@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Runtime.Serialization;
 using UnityEngine;
-using Newtonsoft.Json;
 
 namespace UnitySimplified.Serialization
 {
@@ -196,12 +195,14 @@ namespace UnitySimplified.Serialization
                     switch (fileFormat)
                     {
                         case FileFormat.JSON:
-                            #region IF USING NEWTONSOFT
-                            string dataAsJson = JsonConvert.SerializeObject(obj, typeof(T), Formatting.Indented, null);
-                            #endregion
-                            #region IF NOT
-                            //string dataAsJson = JsonUtility.ToJson(obj, true);
-                            #endregion
+                            string dataAsJson = "";
+                            if (DataManagerUtility.UsingNewtonsoftJson)
+                            {
+                                //dataAsJson = JsonConvert.SerializeObject(obj, typeof(T), Formatting.Indented, null);
+                                if (DataManagerUtility.SerializeObjectMethod != null)
+                                    dataAsJson = (string)DataManagerUtility.SerializeObjectMethod.Invoke(null, new object[] { obj, typeof(T), Enum.Parse(DataManagerUtility.GetNewtonSoftType("Formatting"), "Indented"), null });
+                            }
+                            else dataAsJson = JsonUtility.ToJson(obj, true);
                             File.WriteAllText(fileInfo.FullName, dataAsJson);
                             container.files.Add(fileInfo);
                             break;
@@ -246,12 +247,14 @@ namespace UnitySimplified.Serialization
                 switch (container.fileFormat)
                 {
                     case FileFormat.JSON:
-                        #region IF USING NEWTONSOFT
-                        string dataAsJson = JsonConvert.SerializeObject(obj, typeof(T), Formatting.Indented, null);
-                        #endregion
-                        #region IF NOT
-                        //string dataAsJson = JsonUtility.ToJson(obj, true);
-                        #endregion
+                        string dataAsJson = "";
+                        if (DataManagerUtility.UsingNewtonsoftJson)
+                        {
+                            //dataAsJson = JsonConvert.SerializeObject(obj, typeof(T), Formatting.Indented, null);
+                            if (DataManagerUtility.SerializeObjectMethod != null)
+                                dataAsJson = (string)DataManagerUtility.SerializeObjectMethod.Invoke(null, new object[] { obj, typeof(T), Enum.Parse(DataManagerUtility.GetNewtonSoftType("Formatting"), "Indented"), null });
+                        }
+                        else dataAsJson = JsonUtility.ToJson(obj, true);
                         File.WriteAllText(fileInfo.FullName, dataAsJson);
                         break;
 
@@ -287,12 +290,13 @@ namespace UnitySimplified.Serialization
                 {
                     case FileFormat.JSON:
                         string dataFromJson = File.ReadAllText(fileInfo.FullName);
-                        #region IF USING NEWTONSOFT
-                        FromObjectOverwrite(JsonConvert.DeserializeObject(dataFromJson, typeof(T)), obj);
-                        #endregion
-                        #region IF NOT
-                        //JsonUtility.FromJsonOverwrite(dataFromJson, obj);
-                        #endregion
+                        if (DataManagerUtility.UsingNewtonsoftJson)
+                        {
+                            //FromObjectOverwrite(JsonConvert.DeserializeObject(dataFromJson, typeof(T)), obj);
+                            if (DataManagerUtility.DeserializeObjectMethod != null)
+                                FromObjectOverwrite(DataManagerUtility.DeserializeObjectMethod.Invoke(null, new object[] { dataFromJson, typeof(T) }), obj);
+                        }
+                        else JsonUtility.FromJsonOverwrite(dataFromJson, obj);
                         break;
 
                     case FileFormat.Binary:
@@ -342,7 +346,12 @@ namespace UnitySimplified.Serialization
             switch (fileFormat) 
             {
                 case FileFormat.JSON:
-                    data = JsonUtility.ToJson(file, false);
+                    if (DataManagerUtility.UsingNewtonsoftJson)
+                    {
+                        if (DataManagerUtility.SerializeObjectMethod != null)
+                            data = (string)DataManagerUtility.SerializeObjectMethod.Invoke(null, new object[] { file, typeof(T), Enum.Parse(DataManagerUtility.GetNewtonSoftType("Formatting"), "Indented"), null });
+                    }
+                    else data = JsonUtility.ToJson(file, true);
                     return data;
 
                 case FileFormat.Binary:
@@ -364,7 +373,12 @@ namespace UnitySimplified.Serialization
             switch (fileFormat)
             {
                 case FileFormat.JSON:
-                    JsonUtility.FromJsonOverwrite(data, file);
+                    if (DataManagerUtility.UsingNewtonsoftJson)
+                    {
+                        if (DataManagerUtility.DeserializeObjectMethod != null)
+                            FromObjectOverwrite(DataManagerUtility.DeserializeObjectMethod.Invoke(null, new object[] { data, typeof(T) }), file);
+                    }
+                    else JsonUtility.FromJsonOverwrite(data, file);
                     return;
 
                 case FileFormat.Binary:

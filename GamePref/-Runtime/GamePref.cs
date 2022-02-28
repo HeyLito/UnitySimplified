@@ -109,15 +109,23 @@ namespace UnitySimplified.Serialization
 
         public static void Load()
         {
-            string currentPath = DataManager.TargetDataPath;
-            DataManager.TargetDataPath = DataManager.DefaultPath;
-            DataManager.LoadFileDatabase(FileFormat.JSON, true);
-            DataManager.LoadFromFile("GamePrefs", _gamePrefsByIDs);
-            _loaded = true;
+            _gamePrefsByIDs.Clear();
             _gamePrefsByKeys.Clear();
+
+            bool previousSelection = DataManagerUtility.UsingNewtonsoftJson;
+            string previousPath = DataManager.TargetDataPath;
+            DataManager.TargetDataPath = DataManager.DefaultPath;
+            DataManagerUtility.UsingNewtonsoftJson = DataManagerUtility.DoesNewtonsoftJsonExist;
+            DataManager.LoadFileDatabase(DataManagerUtility.UsingNewtonsoftJson ? FileFormat.JSON : FileFormat.Binary, true);
+            DataManager.LoadFromFile("GamePrefs", _gamePrefsByIDs);
+            DataManager.TargetDataPath = previousPath;
+            DataManagerUtility.UsingNewtonsoftJson = previousSelection;
+            
+
+            _loaded = true;
             foreach (var pair in _gamePrefsByIDs)
                 _gamePrefsByKeys.Add(pair.Value.prefKey, pair.Value);
-            DataManager.TargetDataPath = currentPath;
+
 
             #if UNITY_EDITOR
             GamePrefWindow.onGamePrefsUpdated?.Invoke();
@@ -125,13 +133,17 @@ namespace UnitySimplified.Serialization
         }
         public static void Save()
         {
+            bool previousSelection = DataManagerUtility.UsingNewtonsoftJson;
+            DataManagerUtility.UsingNewtonsoftJson = DataManagerUtility.DoesNewtonsoftJsonExist;
             if (!DataManager.SaveToFile("GamePrefs", _gamePrefsByIDs))
             {
-                string current = DataManager.TargetDataPath;
+                string previousPath = DataManager.TargetDataPath;
                 DataManager.TargetDataPath = DataManager.DefaultPath;
-                DataManager.CreateNewFile("GamePrefs", _gamePrefsByIDs, FileFormat.JSON);
-                DataManager.TargetDataPath = current;
+                DataManager.CreateNewFile("GamePrefs", _gamePrefsByIDs, DataManagerUtility.UsingNewtonsoftJson ? FileFormat.JSON : FileFormat.Binary);
+                DataManager.TargetDataPath = previousPath;
             }
+            DataManagerUtility.UsingNewtonsoftJson = previousSelection;
+
 
             #if UNITY_EDITOR
             GamePrefWindow.onGamePrefsUpdated?.Invoke();
@@ -181,7 +193,9 @@ namespace UnitySimplified.Serialization
 
         private static object DoGetValue<T>(string id, string key, T defaultValue)
         {
+            #if UNITY_EDITOR
             bool updateEditorWindow = false;
+            #endif
             GamePrefData data = null;
 
             if (!string.IsNullOrEmpty(id) && _gamePrefsByIDs.TryGetValue(id, out data) || !string.IsNullOrEmpty(key) && _gamePrefsByKeys.TryGetValue(key, out data))
@@ -200,7 +214,9 @@ namespace UnitySimplified.Serialization
                 data = new GamePrefData(GetNewPref(), key, defaultValue);
                 _gamePrefsByKeys[data.prefKey] = data;
                 _gamePrefsByIDs[data.persistentIdentifier] = data;
+                #if UNITY_EDITOR
                 updateEditorWindow = true;
+                #endif
             }
 
             #if UNITY_EDITOR
@@ -214,7 +230,9 @@ namespace UnitySimplified.Serialization
         }
         private static void DoSetValue<T>(string id, string key, T value)
         {
+            #if UNITY_EDITOR
             bool updateEditorWindow = false;
+            #endif
             GamePrefData data = null;
 
             if (!(value is null))
@@ -237,7 +255,9 @@ namespace UnitySimplified.Serialization
                     data.prefValue = value;
                     _gamePrefsByIDs[data.persistentIdentifier] = data;
                     _gamePrefsByKeys[data.prefKey] = data;
+                    #if UNITY_EDITOR
                     updateEditorWindow = true;
+                    #endif
                 }
 
                 #if UNITY_EDITOR
