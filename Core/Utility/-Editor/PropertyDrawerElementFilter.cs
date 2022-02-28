@@ -1,4 +1,3 @@
-#if UNITY_EDITOR
 
 using System;
 using System.Collections.Generic;
@@ -68,8 +67,10 @@ namespace UnitySimplifiedEditor
         }
         public void RemoveElement(SerializedProperty property)
         {   _processedElementsByPaths.Remove(PropertyPathAsIndex(property));   }
-        public void SetElement(SerializedProperty property, TElement value)
-        {   _processedElementsByPaths[PropertyPathAsIndex(property)] = (0, value);   }
+        public void SetElement(SerializedProperty property, TElement element)
+        {   DoSetElement(property, element);   }
+        public void SetElement(SerializedProperty property, Func<TElement> element)
+        {   DoSetElement(property, element());   }
         public TElement GetFilteredElement(SerializedProperty property, TElement defaultElement)
         {   return DoGetFilteredElement(property, defaultElement, null);   }
         public TElement GetFilteredElement(SerializedProperty property, Func<TElement> defaultElement)
@@ -104,7 +105,7 @@ namespace UnitySimplifiedEditor
                 }
                 else if (defaultElementFromFunc != null)
                 {
-                    value = defaultElementFromFunc.Invoke();
+                    value = defaultElementFromFunc();
                     SetElement(property, value);
                 }
             }
@@ -130,6 +131,8 @@ namespace UnitySimplifiedEditor
         }
         private string PropertyPathAsIndex(SerializedProperty property)
         {   return $"{property.serializedObject.targetObject.name}.{property.propertyPath}";   }
+        private void DoSetElement(SerializedProperty property, TElement element)
+        {   _processedElementsByPaths[PropertyPathAsIndex(property)] = (0, element);   }
     }
 }
 
