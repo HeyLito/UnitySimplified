@@ -62,7 +62,10 @@ namespace UnitySimplified.Serialization
             var queue = new PriorityQueue<int, ValueTuple<Type, CustomSerializer>>();
             foreach (var type in SerializerStorage.Instance.Retrieve()) 
             {
-                var attribute = (CustomSerializer)Attribute.GetCustomAttribute(type, typeof(CustomSerializer));
+                if (type == null)
+                    continue;
+                var attribute = (CustomSerializer)type.GetTypeInfo().GetCustomAttributes(typeof(CustomSerializer), false)
+                                                      .FirstOrDefault();
                 queue.Insert(attribute.priority, (type, attribute));
                 //Debug.Log($"Enqueue: {attribute.inspectedType}, {type}, {attribute.priority}");
             }
@@ -147,40 +150,98 @@ namespace UnitySimplified.Serialization
         #region FUNCTIONS_SYSTEM.OBJECT_SERIALIZER
         public static void Serialize(object instance, Dictionary<string, object> fieldData, SerializerFlags flags)
         {
+            if (instance is IDataSerializerCallback)
+                (instance as IDataSerializerCallback).OnBeforeSerialization();
+
             FieldInfo[] fields = instance.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
             foreach (var field in fields)
             {
-                if (field == null || field.GetCustomAttributes(typeof(NonSerializedAttribute), true).Length > 0 || field.FieldType.GetCustomAttributes(typeof(DontSaveField), true).Length > 0)
+                if (field == null)
+                    continue;
+
+                bool next = false, forceCustomSerializer = false;
+                var attributes = field.GetCustomAttributes(true);
+
+                foreach (var attribute in attributes)
+                {
+                    if (attribute is NonSerializedAttribute || attribute is DontSaveField || attribute is System.Runtime.CompilerServices.CompilerGeneratedAttribute)
+                    {
+                        next = true;
+                        break;
+                    }
+                    else if (attribute is FindCustomSerializer)
+                        forceCustomSerializer = true;
+                }
+                if (next)
                     continue;
 
                 object fieldValue = field.GetValue(instance);
 
-                if (flags.HasFlag(SerializerFlags.AssetReferences) && SerializeFieldAsset(field.Name, fieldValue, fieldData)) { }
+                if (forceCustomSerializer)
+                {
+                    if (fieldValue != null)
+                    {
+                        ObjectData objectData = new ObjectData(field.FieldType, new SerializableReference(fieldValue, typeof(UnityObject)));
+                        DataSerializer.SerializeIntoData(fieldValue, objectData.fieldData, flags);
+                        fieldData[field.Name] = objectData;
+                    }
+                }
+                else if (flags.HasFlag(SerializerFlags.AssetReferences) && SerializeFieldAsset(field.Name, fieldValue, fieldData))
+                { }
                 else if (flags.HasFlag(SerializerFlags.RuntimeReferences) && fieldValue is UnityObject)
                     AddInitializeReferenceAction(() => SerializeFieldReference(field.Name, fieldValue, fieldData, typeof(UnityObject)));
                 else if (flags.HasFlag(SerializerFlags.GenericVariables) && FieldIsSerializable(field, DataSerializer.SurrogateSelector))
                     fieldData[field.Name] = fieldValue;
             }
+
+            if (instance is IDataSerializerCallback)
+                (instance as IDataSerializerCallback).OnAfterSerialization();
         }
 
         public static void Deserialize(object instance, Dictionary<string, object> fieldData, SerializerFlags flags)
         {
+            if (instance is IDataSerializerCallback)
+                (instance as IDataSerializerCallback).OnBeforeDeserialization();
+
             foreach (var pair in fieldData)
             {
                 FieldInfo field = instance.GetType().GetField(pair.Key, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
                 if (field == null)
                     continue;
 
+                bool forceCustomSerializer = false;
+                var attributes = field.GetCustomAttributes(true);
                 object asset = field.FieldType;
                 object dataValue = pair.Value;
 
-                if (flags.HasFlag(SerializerFlags.AssetReferences) && DeserializeFieldAsset(field.Name, ref asset, fieldData))
+                foreach (var attribute in attributes)
+                {
+                    if (attribute is FindCustomSerializer)
+                        forceCustomSerializer = true;
+                }
+
+                if (forceCustomSerializer)
+                {
+                    if (dataValue is ObjectData)
+                    {
+                        var fieldValue = field.GetValue(instance);
+                        if (fieldValue == null)
+                            fieldValue = Activator.CreateInstance(field.FieldType);
+                        (dataValue as ObjectData).reference?.Update(fieldValue);
+                        DataSerializer.DeserializeIntoInstance(fieldValue, (dataValue as ObjectData).fieldData, flags);
+                        field.SetValue(instance, fieldValue);
+                    }
+                }
+                else if (flags.HasFlag(SerializerFlags.AssetReferences) && DeserializeFieldAsset(field.Name, ref asset, fieldData))
                     field.SetValue(instance, asset);
                 else if (flags.HasFlag(SerializerFlags.RuntimeReferences) && field.FieldType != typeof(string) && dataValue is string)
                     AddInitializeReferenceAction(delegate { if (DeserializeFieldReference(field.Name, out object unityObject, fieldData, typeof(UnityObject))) field.SetValue(instance, unityObject); });
                 else if (flags.HasFlag(SerializerFlags.GenericVariables) && FieldIsSerializable(field, DataSerializer.SurrogateSelector))
                     field.SetValue(instance, dataValue);
             }
+
+            if (instance is IDataSerializerCallback)
+                (instance as IDataSerializerCallback).OnAfterDeserialization();
         }
         #endregion
 
