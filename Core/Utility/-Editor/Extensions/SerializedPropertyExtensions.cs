@@ -21,6 +21,14 @@ namespace UnitySimplifiedEditor
             }
             else return null;
         }
+
+        public static bool ExposePropertyInfo(this SerializedProperty property, BindingFlags flags, out FieldInfo info, out object previousObj, out int listIndex)
+        {
+            (FieldInfo, object) tuple = ExposePropertyInfo(property, flags, out listIndex);
+            info = tuple.Item1;
+            previousObj = tuple.Item2;
+            return tuple != (null, null);
+        }
         public static (FieldInfo, object) ExposePropertyInfo(this SerializedProperty property, BindingFlags flags, out int listIndex)
         {
             string[] pathSplit = property.propertyPath.Split('.');

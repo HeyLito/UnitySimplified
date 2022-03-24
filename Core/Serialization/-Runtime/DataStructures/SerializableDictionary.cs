@@ -29,8 +29,10 @@ namespace UnitySimplified.Serialization
         {
             Clear();
             for (int i = 0; i < keys.Count && i < values.Count; i++)
-                if (values[i].GetType() != null)
+            {
+                if (values[i] != null)
                     Add(keys[i], values[i]);
+            }
         }
 
         public List<KeyValuePair<TKey, TValue>> ToList()

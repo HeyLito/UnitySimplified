@@ -15,7 +15,7 @@ namespace UnitySimplifiedEditor.Serialization
             {
                 SessionState.SetBool(editorStatus, true);
                 _ = PrefabStorage.Instance;
-                _ = AssetStorage.Instance;
+                //_ = AssetStorage.Instance;
             }
         }
     }

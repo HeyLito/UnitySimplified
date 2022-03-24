@@ -129,6 +129,7 @@ namespace UnitySimplifiedEditor
                 string memberPath; // THIRD
                 string contextPath; // SECOND
                 string indexedPath; // FIRST
+                // Returns ValueTuple<indexedPath, contextPath, memberPath>
                 int priority;
                 switch (member.MemberType)
                 {

@@ -1,5 +1,9 @@
-using UnityEditor;
+using System;
 using UnityEngine;
+
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace UnitySimplified.Serialization
 {
@@ -16,6 +20,8 @@ namespace UnitySimplified.Serialization
     /// </remarks>
     public abstract class Storage<T> : ScriptableObject where T : Storage<T>
     {
+        [NonSerialized] private static T _instance = null;
+        
         /// <summary>
         /// Determine how to save the container's data. 
         /// By default, the asset will be serialized as a ScriptableObject and stored within the Resources folder. 
@@ -23,7 +29,6 @@ namespace UnitySimplified.Serialization
         /// </summary>
         protected virtual bool SaveAsFile { get; } = false;
 
-        private static T _instance = null;
         /// <summary>
         /// Returns the container of Storage generic T type.
         /// </summary>
@@ -59,8 +64,7 @@ namespace UnitySimplified.Serialization
 
                     string path = $"{System.IO.Path.Combine(resourcePath, typeof(T).Name)}.asset";
                     AssetDatabase.CreateAsset(storage, path);
-                    AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
-                    AssetDatabase.Refresh();
+                    AssetDatabase.SaveAssets();
                 }
                 #endif
                 if (storage.SaveAsFile)
@@ -76,10 +80,15 @@ namespace UnitySimplified.Serialization
         }
         public void AttemptToSave()
         {
-            if (SaveAsFile) 
+            if (SaveAsFile)
             {
+                #if UNITY_EDITOR
+                if (EditorApplication.isCompiling)
+                    return;
+                #endif
+
                 DataManager.LoadFileDatabase(FileFormat.JSON);
-                DataManager.SaveToFile(GetType().Name, this);
+                DataManager.SaveToFile(GetType().Name, Instance);
             }
         }
     }

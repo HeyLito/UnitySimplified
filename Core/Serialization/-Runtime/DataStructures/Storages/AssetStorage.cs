@@ -23,12 +23,11 @@ namespace UnitySimplified.Serialization
             typeof(Texture),
             typeof(RuntimeAnimatorController),
             //typeof(AnimatorController),
-            typeof(AnimationClip),
-            typeof(ScriptableObject)
+            typeof(AnimationClip)
         };
 
         public KeyedAssetsDictionary KeyedAssets => keyedAssets;
-        protected override bool SaveAsFile => false;
+        protected override bool SaveAsFile => true;
 
 
         public bool StoreAsset(UnityObject assetObject, out string key)
@@ -46,7 +45,7 @@ namespace UnitySimplified.Serialization
         }
 
         public bool SupportsType(Type type)
-        {   return _supportedAssets.IndexOf(type) != -1;   }
+        {   return _supportedAssets.IndexOf(type) != -1 || type.IsSubclassOf(typeof(ScriptableObject));   }
         public static string FormatAssetObjectToKey(UnityObject assetObject, string name)
         {   return assetObject ? $"{assetObject.GetType().Name}.{name}" : "";   }
     }

@@ -2,6 +2,7 @@ using System;
 
 namespace UnitySimplified.Serialization 
 {
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
     /// <summary>
     ///     A class attribute tag that allows custom serialization support when using <see cref="DataSerializer"/>.
     ///     <em>

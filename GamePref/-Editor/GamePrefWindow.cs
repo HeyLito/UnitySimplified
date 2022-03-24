@@ -23,7 +23,7 @@ namespace UnitySimplifiedEditor.Serialization
         private Dictionary<string, GamePrefData> _dynamicGamePrefsByKeys = new Dictionary<string, GamePrefData>();
         private Dictionary<string, GamePrefData> _staticPrefsByIDs = new Dictionary<string, GamePrefData>();
         private Dictionary<string, GamePrefData> _staticPrefsByKeys = new Dictionary<string, GamePrefData>();
-        private Dictionary<string, bool> _editingStatusesByIDs = new Dictionary<string, bool>();
+        private SerializableDictionary<string, bool> _propertiesInEditByIDs = new SerializableDictionary<string, bool>();
         private PriorityQueue<int, ((string, GamePrefData), (string, GamePrefData))> _queuedPrefs = new PriorityQueue<int, ((string, GamePrefData), (string, GamePrefData))>();
         private List<KeyValuePair<string, GamePrefData>> _sortedDynamics = new List<KeyValuePair<string, GamePrefData>>();
         private List<KeyValuePair<string, GamePrefData>> _sortedPersistants = new List<KeyValuePair<string, GamePrefData>>();
@@ -521,9 +521,9 @@ namespace UnitySimplifiedEditor.Serialization
 
             bool isEditingThisPref = false;
             if (isEditing && !_debugMode)
-                if (_editingStatusesByIDs.TryGetValue($"{persistentID}.{gamePrefType}", out isEditingThisPref))
-                    isEditingThisPref = _editingStatusesByIDs[$"{persistentID}.{gamePrefType}"] = EditorGUI.Foldout(labelRect, isEditingThisPref, labelContent.text, true);
-                else _editingStatusesByIDs[$"{persistentID}.{gamePrefType}"] = false;
+                if (_propertiesInEditByIDs.TryGetValue($"{persistentID}.{gamePrefType}", out isEditingThisPref))
+                    isEditingThisPref = _propertiesInEditByIDs[$"{persistentID}.{gamePrefType}"] = EditorGUI.Foldout(labelRect, isEditingThisPref, labelContent.text, true);
+                else _propertiesInEditByIDs[$"{persistentID}.{gamePrefType}"] = false;
             else EditorGUI.LabelField(labelRect, labelContent);
 
             if (isEditingThisPref || _debugMode)
