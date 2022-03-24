@@ -34,7 +34,7 @@ namespace UnitySimplified.Serialization
         }
 
         [Serializable]
-        public class InfoContainer
+        public class InfoContainer : IGamePrefEventListener
         {
             public GamePref gamePref = null;
             public string gamePrefKey = "";
@@ -51,7 +51,7 @@ namespace UnitySimplified.Serialization
 
             private static bool _loaded = false;
 
-            public void LoadValue()
+            private void Initialize()
             {
                 if (!_loaded)
                 {
@@ -68,6 +68,11 @@ namespace UnitySimplified.Serialization
                     }
                     _initialized = !_initialized;
                 }
+            }
+
+            public void LoadValue()
+            {
+                Initialize();
 
                 object value;
                 if (_gamePrefIsValid)
@@ -79,21 +84,7 @@ namespace UnitySimplified.Serialization
             }
             public void SetValue(object value, bool notify)
             {
-                if (!_loaded)
-                {
-                    GamePref.Load();
-                    _loaded = !_loaded;
-                }
-
-                if (!_initialized)
-                {
-                    if (GamePref.HasGamePref(gamePref, out GamePrefData data) || GamePrefStorage.Instance.HasGamePref(gamePref, out data))
-                    {
-                        transputType = TypeToTransputType(data.GetPrefType());
-                        _gamePrefIsValid = true;
-                    }
-                    _initialized = !_initialized;
-                }
+                Initialize();
 
                 if (_gamePrefIsValid)
                     gamePref.SetValue(value);
@@ -104,6 +95,8 @@ namespace UnitySimplified.Serialization
 
             public bool AcceptsValue(object value)
             {
+                Initialize();
+
                 switch (transputType)
                 {
                     case TypeOfTransput.Bool:
@@ -126,6 +119,8 @@ namespace UnitySimplified.Serialization
 
             private void InvokeEvent(object value)
             {
+                Initialize();
+
                 switch (transputType)
                 {
                     case TypeOfTransput.Bool:
@@ -161,6 +156,12 @@ namespace UnitySimplified.Serialization
                     return TypeOfTransput.String;
                 return TypeOfTransput.Object;
             }
+
+            void IGamePrefEventListener.OnValueSet(object value)
+            {
+                //Debug.Log($"{gamePref.PersistentIdentifier} valueChanged {value}");
+                InvokeEvent(value);
+            }
         }
 
         [SerializeField] private int targetTransputIndex = -1;
@@ -169,14 +170,22 @@ namespace UnitySimplified.Serialization
         private void OnEnable()
         {
             foreach (var transput in transputs)
+            {
+                if (transput.gamePref != null)
+                    transput.gamePref.RegisterListener(transput);
                 if (transput.loadOn == LoadOn.OnEnable || transput.loadOn == LoadOn.OnEnableWithoutNotify)
                     transput.LoadValue();
+            }
         }
         private void OnDisable()
         {
             foreach (var transput in transputs)
+            {
+                if (transput.gamePref != null)
+                    transput.gamePref.UnregisterListener(transput);
                 if (transput.loadOn == LoadOn.OnDisable || transput.loadOn == LoadOn.OnDisableWithoutNotify)
                     transput.LoadValue();
+            }
         }
         private void Awake()
         {
@@ -244,8 +253,8 @@ namespace UnitySimplified.Serialization
             #if UNITY_EDITOR
             if (UnityObjectUtility.IsObjectInPrefabEdit(this))
                 return;
-
             #endif
+
             foreach (var transput in GetTransputs(value))
                 transput.SetValue(value, notify);
         }

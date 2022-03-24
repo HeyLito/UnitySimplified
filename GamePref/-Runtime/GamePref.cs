@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 #if UNITY_EDITOR
@@ -7,6 +8,11 @@ using UnitySimplifiedEditor.Serialization;
 
 namespace UnitySimplified.Serialization
 {
+    public interface IGamePrefEventListener
+    {
+        public void OnValueSet(object value);
+    }
+
     [Serializable]
     public class GamePref
     {
@@ -16,6 +22,7 @@ namespace UnitySimplified.Serialization
         private static bool _loaded = false;
         private static readonly Dictionary<string, GamePrefData> _gamePrefsByIDs = new Dictionary<string, GamePrefData>();
         private static readonly Dictionary<string, GamePrefData> _gamePrefsByKeys = new Dictionary<string, GamePrefData>();
+        private static readonly Dictionary<string, HashSet<IGamePrefEventListener>> _activeListeners = new Dictionary<string, HashSet<IGamePrefEventListener>>();
         #endregion
 
         #region PROPERTIES
@@ -95,6 +102,29 @@ namespace UnitySimplified.Serialization
             #endif
 
             DoSetValue(PersistentIdentifier, null, value);
+        }
+
+        public void RegisterListener(IGamePrefEventListener listener)
+        {
+            if (listener == null)
+                return;
+            if (!_activeListeners.TryGetValue(PersistentIdentifier, out HashSet<IGamePrefEventListener> listeners))
+                _activeListeners[PersistentIdentifier] = listeners = new HashSet<IGamePrefEventListener>();
+            if (!listeners.Contains(listener))
+                listeners.Add(listener);
+        }
+        public void UnregisterListener(IGamePrefEventListener listener)
+        {
+            if (listener == null)
+                return;
+            if (_activeListeners.TryGetValue(PersistentIdentifier, out HashSet<IGamePrefEventListener> listeners))
+                if (listeners.Contains(listener))
+                {
+                    listeners.Remove(listener);
+                    if (listeners.Count == 0)
+                        _activeListeners.Remove(PersistentIdentifier);
+
+                }
         }
         #endregion
 
@@ -258,6 +288,13 @@ namespace UnitySimplified.Serialization
                     #if UNITY_EDITOR
                     updateEditorWindow = true;
                     #endif
+
+                    if (_activeListeners.TryGetValue(data.persistentIdentifier, out HashSet<IGamePrefEventListener> listeners))
+                    {
+                        var listenersAsArray = listeners.ToArray();
+                        for (int i = listenersAsArray.Length - 1; i >= 0; i--)
+                            listenersAsArray[i].OnValueSet(value);
+                    }
                 }
 
                 #if UNITY_EDITOR
