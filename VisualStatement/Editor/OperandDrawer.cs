@@ -117,44 +117,47 @@ namespace UnitySimplifiedEditor
         }
         #endregion
 
-        private PriorityQueue<int, ValueTuple<string, string, string>> GetGenericMenuOptions(UnityObject target, bool displayTarget)
+        private static PriorityQueue<int, (string indexedPath, string contextPath, string memberPath)> GetGenericMenuOptions(UnityObject target, bool displayTarget)
         {
-            PriorityQueue<int, ValueTuple<string, string, string>> optionInfos = new PriorityQueue<int, (string, string, string)>();
+            var optionInfos = new PriorityQueue<int, (string, string, string)>();
             foreach (var member in target.GetType().GetMembers(VisualStatementUtility.flags))
             {
                 if (!VisualStatementUtility.MemberisValid(member))
                     continue;
-                string memberPath; // THIRD
-                string contextPath; // SECOND
-                string indexedPath; // FIRST
-                // Returns ValueTuple<indexedPath, contextPath, memberPath>
+
                 int priority;
+                (string indexedPath, string contextPath, string memberPath) result = (default, default, default);
                 switch (member.MemberType)
                 {
                     case MemberTypes.Field:
-                        var field = member as FieldInfo;
-                        memberPath = field.Name;
-                        contextPath = $"{(displayTarget ? $"{target.GetType().Name}/" : "")}{field.FieldType.Name} {memberPath}";
+                        if (member is not FieldInfo fieldInfo)
+                            continue;
+                        result.memberPath = fieldInfo.Name;
+                        result.contextPath = $"{(displayTarget ? $"{target.GetType().Name}/" : "")}{fieldInfo.FieldType.Name} {result.memberPath}";
                         priority = 2;
                         break;
+
                     case MemberTypes.Property:
-                        var property = member as PropertyInfo;
-                        memberPath = property.Name;
-                        contextPath = $"{(displayTarget ? $"{target.GetType().Name}/" : "")}{property.PropertyType.Name} {memberPath}";
+                        if (member is not PropertyInfo propertyInfo)
+                            continue;
+                        result.memberPath = propertyInfo.Name;
+                        result.contextPath = $"{(displayTarget ? $"{target.GetType().Name}/" : "")}{propertyInfo.PropertyType.Name} {result.memberPath}";
                         priority = 1;
                         break;
+
                     case MemberTypes.Method:
-                        var method = member as MethodInfo;
-                        memberPath = method.Name;
-                        contextPath = $"{(displayTarget ? $"{target.GetType().Name}/" : "")}{method.ReturnType.Name} {memberPath} ()";
+                        if (member is not MethodInfo methodInfo)
+                            continue;
+                        result.memberPath = methodInfo.Name;
+                        result.contextPath = $"{(displayTarget ? $"{target.GetType().Name}/" : "")}{methodInfo.ReturnType.Name} {result.memberPath} ()";
                         priority = 0;
                         break;
 
                     default:
                         continue;
                 }
-                indexedPath = $"{target.GetType().Name}.{memberPath}";
-                optionInfos.Insert(priority, (indexedPath, contextPath, memberPath));
+                result.indexedPath = $"{target.GetType().Name}.{result.memberPath}";
+                optionInfos.Add(priority, result);
             }
             return optionInfos;
         }
@@ -182,7 +185,7 @@ namespace UnitySimplifiedEditor
                 contextPathsList = new List<string>();
                 if (gObj)
                 {
-                    List<UnityObject> candidates = new List<UnityObject> { gObj };
+                    var candidates = new List<UnityObject> { gObj };
                     foreach (var component in gObj.GetComponents<Component>())
                         if (component != null)
                             candidates.Add(component);
@@ -190,13 +193,12 @@ namespace UnitySimplifiedEditor
                     for (int i = 0, j = 0; i < candidates.Count; i++)
                     {
                         var orderedOptions = GetGenericMenuOptions(candidates[i], true);
-                        for (int v = 0, count = orderedOptions.Count; v < count; v++)
+                        while (orderedOptions.Pop(out (string indexedPath, string contextPath, string memberPath) pop))
                         {
-                            var next = orderedOptions.Pop();
-                            if (next.Item1 == $"{obj.GetType().Name}.{path}")
+                            if (pop.indexedPath == $"{obj.GetType().Name}.{path}")
                                 currentIndex = j;
-                            contextPathsList.Add(next.Item2);
-                            tuplesByPaths[j] = (next.Item3, candidates[i]);
+                            contextPathsList.Add(pop.contextPath);
+                            tuplesByPaths[j] = (pop.memberPath, candidates[i]);
                             j++;
                         }
                     }
@@ -205,13 +207,12 @@ namespace UnitySimplifiedEditor
                 {
                     int index = 0;
                     var orderedOptions = GetGenericMenuOptions(obj, true);
-                    for (int i = 0, count = orderedOptions.Count; i < count; i++)
+                    while (orderedOptions.Pop(out (string indexedPath, string contextPath, string memberPath) pop))
                     {
-                        var next = orderedOptions.Pop();
-                        if (next.Item1 == $"{obj.GetType().Name}.{path}")
+                        if (pop.indexedPath == $"{obj.GetType().Name}.{path}")
                             currentIndex = index;
-                        contextPathsList.Add(next.Item2);
-                        tuplesByPaths[index] = (next.Item3, obj);
+                        contextPathsList.Add(pop.contextPath);
+                        tuplesByPaths[index] = (pop.memberPath, obj);
                         index++;
                     }
                 }
