@@ -142,14 +142,15 @@ namespace UnitySimplifiedEditor.Serialization
                 GamePrefType gamePrefType = GamePrefType.None;
                 for (int i = 0, count = tempQueuedPrefs.Count; i < count; i++)
                 {
-                    var poppedPair = tempQueuedPrefs.PopPair();
-                    GUIContent labelContent = new GUIContent();
-                    string persistentID = "";
+                    if (!tempQueuedPrefs.Pop(out KeyValuePair<int, ((string, GamePrefData), (string, GamePrefData))> pop))
+                        continue;
+                    GUIContent labelContent = new();
+                    string persistentIdentifier = "";
                     string prefKey = "";
                     object prefValue = null;
                     GamePrefType previousType = gamePrefType;
 
-                    switch (poppedPair.Key)
+                    switch (pop.Key)
                     {
                         case 2:
                             gamePrefType = GamePrefType.Dynamic | GamePrefType.Static;
@@ -179,17 +180,17 @@ namespace UnitySimplifiedEditor.Serialization
                     {
                         if (gamePrefType.HasFlag(GamePrefType.Dynamic))
                         {
-                            persistentID = poppedPair.Value.Item1.Item1;
-                            prefKey = poppedPair.Value.Item1.Item2.PrefKey;
-                            prefValue = poppedPair.Value.Item1.Item2.PrefValue;
+                            persistentIdentifier = pop.Value.Item1.Item1;
+                            prefKey = pop.Value.Item1.Item2.PrefKey;
+                            prefValue = pop.Value.Item1.Item2.PrefValue;
                         }
                         else if (gamePrefType.HasFlag(GamePrefType.Static))
                         {
-                            persistentID = poppedPair.Value.Item2.Item1;
-                            prefKey = poppedPair.Value.Item2.Item2.PrefKey;
-                            prefValue = poppedPair.Value.Item2.Item2.PrefValue;
+                            persistentIdentifier = pop.Value.Item2.Item1;
+                            prefKey = pop.Value.Item2.Item2.PrefKey;
+                            prefValue = pop.Value.Item2.Item2.PrefValue;
                         }
-                        DrawGamePref(gamePrefType, poppedPair.Value.Item1.Item2, poppedPair.Value.Item2.Item2, persistentID, prefKey, prefValue, _isEditing, ref changed);
+                        DrawGamePref(gamePrefType, pop.Value.Item1.Item2, pop.Value.Item2.Item2, persistentIdentifier, prefKey, prefValue, _isEditing, ref changed);
                     }
                 }
                 EditorGUILayout.EndVertical();
@@ -630,9 +631,9 @@ namespace UnitySimplifiedEditor.Serialization
                 PingLabel.SetCurrentLabel(labelContent, !isEditing || _debugMode ? labelRect : new Rect(labelRect.x + 13, labelRect.y, labelRect.width, labelRect.height));
         }
 
-        private GamePref GetNewPref() => typeof(GamePref).GetMethod("GetNewPref", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new object[0]) as GamePref;
-        private GamePrefData CreateGamePrefData(string persistentIdentifier, string prefKey, object prefValue) => Activator.CreateInstance(typeof(GamePrefData), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { persistentIdentifier, prefKey, prefValue }, null, null) as GamePrefData;
-        private GamePrefData CreateGamePrefData(GamePrefData gamePrefData) => Activator.CreateInstance(typeof(GamePrefData), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { gamePrefData }, null, null) as GamePrefData;
+        private static GamePref GetNewPref() => typeof(GamePref).GetMethod("GetNewPref", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new object[0]) as GamePref;
+        private static GamePrefData CreateGamePrefData(string persistentIdentifier, string prefKey, object prefValue) => Activator.CreateInstance(typeof(GamePrefData), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { persistentIdentifier, prefKey, prefValue }, null, null) as GamePrefData;
+        private static GamePrefData CreateGamePrefData(GamePrefData gamePrefData) => Activator.CreateInstance(typeof(GamePrefData), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { gamePrefData }, null, null) as GamePrefData;
         private void LoadKeys()
         {
             var dynamicGamePrefs = GamePrefStorage.Instance.GetGamePrefs();
@@ -656,25 +657,25 @@ namespace UnitySimplifiedEditor.Serialization
             {
                 if (_staticPrefsByIDs.TryGetValue(pair.Key, out var otherValue))
                 {
-                    _queuedPrefs.Insert(2, ((pair.Key, pair.Value), (pair.Key, otherValue)));
+                    _queuedPrefs.Add(2, ((pair.Key, pair.Value), (pair.Key, otherValue)));
                     closed.Add(pair.Key);
                 }
                 else
                 {
-                    _queuedPrefs.Insert(1, ((pair.Key, pair.Value), (null, null)));
+                    _queuedPrefs.Add(1, ((pair.Key, pair.Value), (null, null)));
                     closed.Add(pair.Key);
                 }
             }
             foreach (var pair in _sortedPersistants)
                 if (!closed.Contains(pair.Key))
-                    _queuedPrefs.Insert(0, ((null, null), (pair.Key, pair.Value)));
+                    _queuedPrefs.Add(0, ((null, null), (pair.Key, pair.Value)));
 
             foreach (var directory in Directory.CreateDirectory(Application.dataPath).GetDirectories())
                 foreach (var file in directory.GetFiles())
                     if (file.Name == "GamePrefStorage.asset")
                         _dynamicGamePrefsPath = file.FullName;
 
-            DataManager.ContainsFile("GamePrefs", out _staticGamePrefsPath);
+            DataManager.ContainsFile("GamePrefs", out _, out _staticGamePrefsPath, out _);
             Repaint();
         }
 
