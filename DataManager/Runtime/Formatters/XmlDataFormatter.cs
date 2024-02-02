@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Xml.Serialization;
 
+#pragma warning disable CS0162 // Unreachable code detected
 namespace UnitySimplified.Serialization.Formatters
 {
     /// <summary>
@@ -34,6 +35,7 @@ namespace UnitySimplified.Serialization.Formatters
         public void SerializeToString<T>(T instance, out string instanceData)
         {
             throw new NotImplementedException();
+
             using (MemoryStream stream = new())
             {
                 XmlSerializer xmlSerializer = new XmlSerializer(typeof(T));
@@ -56,3 +58,4 @@ namespace UnitySimplified.Serialization.Formatters
         }
     }
 }
+#pragma warning restore CS0162 // Unreachable code detected
