@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
+using UnitySimplified.Serialization.Formatters;
 
 namespace UnitySimplified.Serialization
 {
@@ -139,14 +140,11 @@ namespace UnitySimplified.Serialization
 
             List<GamePrefData> gamePrefDatas = new List<GamePrefData>();
 
-            bool previousSelection = DataManagerUtility.UsingNewtonsoftJson;
             string previousPath = DataManager.TargetDataPath;
             DataManager.TargetDataPath = DataManager.DefaultPath;
-            DataManagerUtility.UsingNewtonsoftJson = DataManagerUtility.DoesNewtonsoftJsonExist;
-            DataManager.LoadFileDatabase(FileFormat.Binary, true);
+            DataManager.LoadDatabase();
             DataManager.LoadFromFile("GamePrefs", gamePrefDatas);
             DataManager.TargetDataPath = previousPath;
-            DataManagerUtility.UsingNewtonsoftJson = previousSelection;
             
 
             _loaded = true;
@@ -164,16 +162,13 @@ namespace UnitySimplified.Serialization
             foreach (var item in _gamePrefsByIDs.Values)
                 gamePrefDatas.Add(item);
 
-            bool previousSelection = DataManagerUtility.UsingNewtonsoftJson;
-            DataManagerUtility.UsingNewtonsoftJson = DataManagerUtility.DoesNewtonsoftJsonExist;
+            string previousPath = DataManager.TargetDataPath;
+            DataManager.TargetDataPath = DataManager.DefaultPath;
+            DataManager.LoadDatabase();
             if (!DataManager.SaveToFile("GamePrefs", gamePrefDatas))
-            {
-                string previousPath = DataManager.TargetDataPath;
-                DataManager.TargetDataPath = DataManager.DefaultPath;
-                DataManager.CreateNewFile("GamePrefs", gamePrefDatas, FileFormat.Binary);
-                DataManager.TargetDataPath = previousPath;
-            }
-            DataManagerUtility.UsingNewtonsoftJson = previousSelection;
+                DataManager.CreateNewFile("GamePrefs", "GamePrefs", new BinaryDataFormatter(), gamePrefDatas);
+            DataManager.TargetDataPath = previousPath;
+            DataManager.LoadDatabase();
 
             onGamePrefUpdated?.Invoke();
         }

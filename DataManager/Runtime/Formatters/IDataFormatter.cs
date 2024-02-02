@@ -1,6 +1,6 @@
-namespace UnitySimplified.Serialization
+namespace UnitySimplified.Serialization.Formatters
 {
-    public interface IDataManagerFormatter
+    public interface IDataFormatter
     {
         public string FileExtension { get; }
         public void SerializeToFile<T>(string filePath, T instance);

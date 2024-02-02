@@ -1,6 +1,6 @@
 using System;
 using UnityEngine;
-
+using UnitySimplified.Serialization.Formatters;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -70,9 +70,9 @@ namespace UnitySimplified.Serialization
                 #endif
                 if (storage.SaveAsFile)
                 {
-                    DataManager.LoadFileDatabase(FileFormat.JSON);
+                    DataManager.LoadDatabase();
                     if (!DataManager.LoadFromFile(storage.GetType().Name, storage))
-                        DataManager.CreateNewFile(storage.GetType().Name, storage, FileFormat.JSON);
+                         DataManager.CreateNewFile(storage.GetType().Name, storage.GetType().Name, new JsonDataFormatter(), storage);
 
                     Application.quitting += storage.AttemptToSave;
                 }
@@ -88,7 +88,7 @@ namespace UnitySimplified.Serialization
                     return;
                 #endif
 
-                DataManager.LoadFileDatabase(FileFormat.JSON);
+                DataManager.LoadDatabase();
                 DataManager.SaveToFile(GetType().Name, Instance);
             }
         }

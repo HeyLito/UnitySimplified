@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using UnityEngine;
 using UnitySimplified.Serialization;
+using UnitySimplified.Serialization.Formatters;
 using UnityObject = UnityEngine.Object;
 
 namespace UnitySimplified 
@@ -27,10 +28,15 @@ namespace UnitySimplified
             }
 
             #region FIELDS
-            [NonSerialized] private object _memberObject;
-            [NonSerialized] private MemberInfo _memberInfo;
-            [NonSerialized] private Type _valueType;
-            [NonSerialized] private object _value;
+            [NonSerialized]
+            private object _memberObject;
+            [NonSerialized]
+            private MemberInfo _memberInfo;
+            [NonSerialized]
+            private Type _valueType;
+            [NonSerialized]
+            private object _value;
+            private readonly BinaryDataFormatter _binaryDataFormatter = new BinaryDataFormatter();
 
             [SerializeField] private ReferenceType referenceType;
             [SerializeField] private string valueType;
@@ -145,7 +151,7 @@ namespace UnitySimplified
                             this.valueType = valueType.AssemblyQualifiedName;
 
                             if (DataManagerUtility.IsSerializable(valueType))
-                                valueData = DataManager.SaveFileAsString(new DataTransfer(newValue), FileFormat.Binary);
+                                DataManager.SaveObjectAsString(new DataTransfer(newValue), _binaryDataFormatter, out valueData);
                         }
 
                         if (valueType != null && valueType.IsSubclassOf(typeof(UnityObject)))
@@ -160,8 +166,7 @@ namespace UnitySimplified
                         break;
                 }
             }
-            public bool IsValid()
-            {   return DoIsValid(out _, out _);   }
+            public bool IsValid() => DoIsValid(out _, out _);
             public object GetFieldObject()
             {
                 if (referenceType != ReferenceType.Field)
@@ -206,7 +211,7 @@ namespace UnitySimplified
                         if (!string.IsNullOrEmpty(valueData))
                         {
                             var dataTransfer = new DataTransfer();
-                            DataManager.LoadFileFromString(dataTransfer, valueData, FileFormat.Binary);
+                            DataManager.LoadObjectFromString(dataTransfer, _binaryDataFormatter, valueData);
                             return _value = dataTransfer.value;
                         }
                     }
@@ -227,8 +232,7 @@ namespace UnitySimplified
                 return DoGetResult();
             }
 
-            public override string ToString()
-            {   return base.ToString() + $"({ValueType})";   }
+            public override string ToString() => base.ToString() + $"({ValueType})";
             #endregion
         }
     }

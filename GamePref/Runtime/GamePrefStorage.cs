@@ -1,16 +1,19 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnitySimplified.Serialization.Formatters;
 
 namespace UnitySimplified.Serialization
 {
     public class GamePrefStorage : Storage<GamePrefStorage>
     {
-        [SerializeField] private List<string> gamePrefs = new List<string>();
+        [SerializeField]
+        private List<string> gamePrefs = new List<string>();
         
         private Dictionary<string, GamePrefData> _gamePrefsByIDs = null;
         private Dictionary<string, GamePrefData> _gamePrefsByKeys = null;
         private Dictionary<string, int> _indexesByIDs = null;
-        
+        private readonly BinaryDataFormatter _binaryDataFormatter = new BinaryDataFormatter();
+
         public Dictionary<string, GamePrefData> GetGamePrefs()
         {
             if (_gamePrefsByIDs == null)
@@ -21,7 +24,7 @@ namespace UnitySimplified.Serialization
                 for (int i = 0; i < gamePrefs.Count; i++)
                 {
                     GamePrefData tempPref = new GamePrefData();
-                    DataManager.LoadFileFromString(tempPref, gamePrefs[i], FileFormat.Binary);
+                    DataManager.LoadObjectFromString(tempPref, _binaryDataFormatter, gamePrefs[i]);
                     _gamePrefsByIDs.Add(tempPref.PersistentIdentifier, tempPref);
                     _gamePrefsByKeys.Add(tempPref.PrefKey, tempPref);
                     _indexesByIDs.Add(tempPref.PersistentIdentifier, i);
@@ -31,7 +34,8 @@ namespace UnitySimplified.Serialization
         }
         public void AddGamePrefData(GamePrefData data)
         {
-            gamePrefs.Add(DataManager.SaveFileAsString(data, FileFormat.Binary));
+            DataManager.SaveObjectAsString(data, _binaryDataFormatter, out string dataAsString);
+            gamePrefs.Add(dataAsString);
             _gamePrefsByIDs.Add(data.PersistentIdentifier, data);
             _gamePrefsByKeys.Add(data.PrefKey, data);
             _indexesByIDs.Add(data.PersistentIdentifier, gamePrefs.Count - 1);
@@ -40,7 +44,8 @@ namespace UnitySimplified.Serialization
         {
             if (_indexesByIDs.TryGetValue(gamePref.PersistentIdentifier, out int index))
             {
-                gamePrefs[index] = DataManager.SaveFileAsString(gamePref, FileFormat.Binary);
+                DataManager.SaveObjectAsString(gamePref, _binaryDataFormatter, out string dataAsString);
+                gamePrefs[index] = dataAsString;
                 _gamePrefsByIDs[gamePref.PersistentIdentifier] = gamePref;
                 _gamePrefsByKeys[gamePref.PrefKey] = gamePref;
             }
