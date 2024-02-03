@@ -2,92 +2,53 @@ using System;
 
 namespace UnitySimplified.Serialization 
 {
-    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
     /// <summary>
-    ///     A class attribute tag that allows custom serialization support when using <see cref="DataSerializer"/>.
+    ///     An attribute tag for classes that allows custom serialization when using <see cref="DataSerializer"/>.
     ///     <em>
     ///     <br/>
-    ///         Requires class to inherit from <see cref="IConvertibleData"/>
+    ///     Requires serializer class to inherit from <see cref="IDataSerializable"/>
     ///     </em>
     /// </summary>
+    [AttributeUsage(AttributeTargets.Class)]
     public class CustomSerializer : Attribute
     {
         /// <summary>
-        ///     The type in which this serializer will target.
+        ///     The target class that this serializer will read and write from.
         /// </summary>
         public readonly Type inspectedType = null;
 
         /// <summary>
-        ///     Determines whether this serialization process applys to data types that are not equalivent to <strong><em>inspectedType</em></strong>, but can be assigned from it. 
-        ///     When false, The process only applys to data types that are equalivent to <strong><em>inspectedType</em></strong>.
-        /// </summary>
-        public readonly bool allowsInheritance = false;
-
-        /// <summary>
-        ///     Sorts serializers by their importance. Built-in serializers have priority range of <strong>-1</strong> to <strong>-10</strong>.
-        /// </summary>
-        public readonly int priority = 0;
-
-        /// <summary>
-        ///     A class attribute tag that allows custom serialization support when using <see cref="DataSerializer"/>.
-        ///     <em>
+        ///     Determines whether attribute will also work on types that inherit from <see cref="inspectedType"/>.
         ///     <br/>
-        ///         Requires class to inherit from <see cref="IConvertibleData"/>
-        ///     </em>
+        ///     If <b><em>False</em></b>, this serializer will only apply to class types that are equivalent to <see cref="inspectedType"/>.
         /// </summary>
-        /// <param name="inspectedType">
-        ///     The type in which this serializer will target.
-        /// </param>
+        public readonly bool useForDerivedClasses = false;
+
+        /// <summary>
+        ///     A value that determines which serializer to select. Built-in serializers have priority range of <b>-10</b> to <b>-1</b>.
+        /// </summary>
+        public readonly int overridePriority = 0;
+
+
+
+        /// <summary><inheritdoc cref="CustomSerializer" path="/summary"/></summary>
+        /// <param name="inspectedType"><inheritdoc cref="inspectedType" path="/summary"/></param>
         public CustomSerializer(Type inspectedType) => this.inspectedType = inspectedType;
 
-        /// <summary>
-        ///     A class attribute tag that allows custom serialization support when using <see cref="DataSerializer"/>.
-        ///     <em>
-        ///     <br/> 
-        ///         Requires class to inherit from <see cref="IConvertibleData"/>
-        ///     </em>
-        /// </summary>
-        /// <param name="inspectedType">
-        ///     The type in which this serializer will target.
-        /// </param>
-        /// <param name="allowsInheritance">
-        ///     Determines whether this serialization process applys to data types that are not equalivent to <strong><em>inspectedType</em></strong>, but can be assigned from it. 
-        ///     When false, The process only applys to data types that are equalivent to <strong><em>inspectedType</em></strong>.
-        /// </param>
-        public CustomSerializer(Type inspectedType, bool allowsInheritance) : this(inspectedType) => this.allowsInheritance = allowsInheritance;
+        /// <summary><inheritdoc cref="CustomSerializer" path="/summary"/></summary>
+        /// <param name="inspectedType"><inheritdoc cref="inspectedType" path="/summary"/></param>
+        /// <param name="useForDerivedClasses"><inheritdoc cref="useForDerivedClasses" path="/summary"/></param>
+        public CustomSerializer(Type inspectedType, bool useForDerivedClasses) : this(inspectedType) => this.useForDerivedClasses = useForDerivedClasses;
 
-        /// <summary>
-        ///     A class attribute tag that allows custom serialization support when using <see cref="DataSerializer"/>.
-        ///     <em>
-        ///     <br/> 
-        ///         Requires class to inherit from <see cref="IConvertibleData"/>
-        ///     </em>
-        /// </summary>
-        /// <param name="inspectedType">
-        ///     The type in which this serializer will target.
-        /// </param>
-        /// <param name="priority">
-        ///     Sorts serializers by their importance. Built-in serializers have priority range of <strong>-1</strong> to <strong>-10</strong>.
-        /// </param>
-        public CustomSerializer(Type inspectedType, int priority = 0) : this(inspectedType) => this.priority = priority;
+        /// <summary><inheritdoc cref="CustomSerializer" path="/summary"/></summary>
+        /// <param name="inspectedType"><inheritdoc cref="inspectedType" path="/summary"/></param>
+        /// <param name="overridePriority"><inheritdoc cref="overridePriority" path="/summary"/></param>
+        public CustomSerializer(Type inspectedType, int overridePriority = 0) : this(inspectedType) => this.overridePriority = overridePriority;
 
-        /// <summary>
-        ///     A class attribute tag that allows custom serialization support when using <see cref="DataSerializer"/>.
-        ///     <em>
-        ///     <br/> 
-        ///         Requires class to inherit from <see cref="IConvertibleData"/>
-        ///     </em>
-        /// </summary>
-        /// <param name="inspectedType">
-        ///     The type in which this serializer will target.
-        /// </param>
-        /// <param name="allowsInheritance">
-        ///     Determines whether this serialization process applys to data types that are not equalivent to <strong><em>inspectedType</em></strong>, but can be assigned from it. 
-        ///     When false, The process only applys to data types that are equalivent to <strong><em>inspectedType</em></strong>.
-        /// </param>
-        /// <param name="priority">
-        ///     Sorts serializers by their importance. Built-in serializers have priority range of <strong>-1</strong> to <strong>-10</strong>.
-        /// </param>
-        public CustomSerializer(Type inspectedType, bool allowsInheritance, int priority = 0) : this(inspectedType, allowsInheritance) => this.priority = priority;
+        /// <summary><inheritdoc cref="CustomSerializer" path="/summary"/></summary>
+        /// <param name="inspectedType"><inheritdoc cref="inspectedType" path="/summary"/></param>
+        /// <param name="useForDerivedClasses"><inheritdoc cref="useForDerivedClasses" path="/summary"/></param>
+        /// <param name="overridePriority"><inheritdoc cref="overridePriority" path="/summary"/></param>
+        public CustomSerializer(Type inspectedType, bool useForDerivedClasses, int overridePriority = 0) : this(inspectedType, useForDerivedClasses) => this.overridePriority = overridePriority;
     }
 }

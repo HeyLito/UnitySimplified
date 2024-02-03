@@ -32,6 +32,11 @@ namespace UnitySimplified.Serialization
         /// <summary>
         /// Creates a new data structure instance.
         /// </summary>
+        internal ObjectData() { }
+
+        /// <summary>
+        /// Creates a new data structure instance.
+        /// </summary>
         /// 
         /// <param name="type">
         /// The <see cref="Type"/> that this data container is frameworked after.
