@@ -27,56 +27,44 @@ namespace UnitySimplified
         public int Count { get; private set; }
 
 
-        public PriorityQueue() => _dictionary =
-            new SortedDictionary<TPriority, LinkedList<TValue>>(new DescendingComparer<TPriority>());
-
-        public PriorityQueue(IComparer<TPriority> comparer) =>
-            _dictionary = new SortedDictionary<TPriority, LinkedList<TValue>>(comparer);
-
-        public PriorityQueue(PriorityQueue<TPriority, TValue> other) : this(other._dictionary.Comparer)
+        public PriorityQueue() => _dictionary = new SortedDictionary<TPriority, LinkedList<TValue>>(Comparer<TPriority>.Create((x, y) => y.CompareTo(x)));
+        public PriorityQueue(IComparer<TPriority> comparer) => _dictionary = new SortedDictionary<TPriority, LinkedList<TValue>>(comparer);
+        public PriorityQueue(PriorityQueue<TPriority, TValue> other) : this(other, other._dictionary.Comparer) { }
+        public PriorityQueue(IEnumerable<KeyValuePair<TPriority, TValue>> other) : this(other, null) { }
+        public PriorityQueue(IEnumerable<KeyValuePair<TPriority, TValue>> other, IComparer<TPriority> comparer) : this(comparer)
         {
-            using var enumerator =
-                ((IEnumerable<KeyValuePair<TPriority, LinkedList<TValue>>>)_dictionary).GetEnumerator();
+            using var enumerator = other.GetEnumerator();
             while (enumerator.MoveNext())
             {
-                LinkedList<TValue> elements = new();
-                _dictionary.Add(enumerator.Current.Key, elements);
-                foreach (var item in enumerator.Current.Value)
-                {
-                    Count++;
-                    elements.AddLast(item);
-                }
+                Count++;
+                if (!_dictionary.TryGetValue(enumerator.Current.Key, out var elements))
+                    _dictionary[enumerator.Current.Key] = elements = new LinkedList<TValue>();
+                elements.AddLast(enumerator.Current.Value);
             }
         }
-
 
 
         IEnumerator IEnumerable.GetEnumerator() =>
             (from pair in _dictionary where pair.Value != null from value in pair.Value select (pair.Key, value))
             .GetEnumerator();
-
         IEnumerator<KeyValuePair<TPriority, TValue>> IEnumerable<KeyValuePair<TPriority, TValue>>.GetEnumerator() =>
             (from pair in _dictionary
-                where pair.Value != null
-                from value in pair.Value
-                select new KeyValuePair<TPriority, TValue>(pair.Key, value)).GetEnumerator();
-
+            where pair.Value != null
+            from value in pair.Value
+            select new KeyValuePair<TPriority, TValue>(pair.Key, value)).GetEnumerator();
         public void Clear() => DoClear();
         public bool Contains(TPriority priority) => DoContains(priority);
         public bool Contains(TValue value) => DoContains(value);
         public void Add(TPriority priority, TValue value) => DoAdd(priority, value);
         public bool Remove(TValue value) => DoRemove(value);
         public bool Pop(out KeyValuePair<TPriority, TValue> pair) => DoPop(out pair);
-
         public bool Pop(out TValue value)
         {
             bool popResult = DoPop(out var pair);
             value = pair.Value;
             return popResult;
         }
-
         public bool Peek(out KeyValuePair<TPriority, TValue> pair) => DoPeek(out pair);
-
         public bool Peek(out TValue value)
         {
             bool peekResult = DoPeek(out var pair);
@@ -84,17 +72,13 @@ namespace UnitySimplified
             return peekResult;
         }
 
-
-
         private void DoClear()
         {
             _dictionary.Clear();
             Count = 0;
         }
-
         private bool DoContains(TPriority priority) => _dictionary.ContainsKey(priority);
         private bool DoContains(TValue value) => _dictionary.Any(pair => pair.Value.Contains(value));
-
         private void DoAdd(TPriority priority, TValue value)
         {
             if (!_dictionary.TryGetValue(priority, out LinkedList<TValue> items))
@@ -103,7 +87,6 @@ namespace UnitySimplified
             Count++;
             items.AddLast(value);
         }
-
         private bool DoRemove(TValue value)
         {
             bool result = false;
@@ -122,7 +105,6 @@ namespace UnitySimplified
 
             return result;
         }
-
         private bool DoPeek(out KeyValuePair<TPriority, TValue> value)
         {
             value = default;
@@ -135,7 +117,6 @@ namespace UnitySimplified
             value = new KeyValuePair<TPriority, TValue>(pair.Key, output);
             return true;
         }
-
         private bool DoPop(out KeyValuePair<TPriority, TValue> value)
         {
             value = default;
@@ -152,17 +133,6 @@ namespace UnitySimplified
             Count--;
             value = new KeyValuePair<TPriority, TValue>(pair.Key, output);
             return true;
-        }
-
-
-        public class DescendingComparer<T> : IComparer<T> where T : IComparable
-        {
-            public int Compare(T x, T y) => y.CompareTo(x);
-        }
-
-        public class AscendingComparer<T> : IComparer<T> where T : IComparable
-        {
-            public int Compare(T x, T y) => x.CompareTo(y);
         }
     }
 }
