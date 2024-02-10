@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace UnitySimplified
+namespace UnitySimplified.Collections
 {
     /// <summary>
     /// A <see cref="KeyValuePair{TKey,TValue}"/> queue collection that sorts values accordingly to their priority value.
