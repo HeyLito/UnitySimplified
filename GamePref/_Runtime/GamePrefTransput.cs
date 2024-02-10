@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+using UnitySimplified.RuntimeDatabases;
 #if UNITY_EDITOR
 using UnitySimplifiedEditor;
 #endif
@@ -46,10 +47,10 @@ namespace UnitySimplified.Serialization
             public UnityEvent<string> onStringValueChanged = new UnityEvent<string>();
             public UnityEvent<object> onObjectValueChanged = new UnityEvent<object>();
 
-            private bool _initialized = false;
-            private bool _gamePrefIsValid = false;
+            private bool _initialized;
+            private bool _gamePrefIsValid;
 
-            private static bool _loaded = false;
+            private static bool _loaded;
 
             private void Initialize()
             {
@@ -61,9 +62,9 @@ namespace UnitySimplified.Serialization
 
                 if (!_initialized)
                 {
-                    if (GamePref.HasGamePref(gamePref, out GamePrefData data) || GamePrefStorage.Instance.HasGamePref(gamePref, out data))
+                    if (GamePref.DoTryGetGamePrefFromIdentifier(gamePref.Identifier, out GamePrefData data) || GamePrefStorage.Instance.TryGetFromIdentifier(gamePref.Identifier, out data))
                     {
-                        transputType = TypeToTransputType(data.GetPrefType());
+                        transputType = TypeToTransputType(data.ValueType);
                         _gamePrefIsValid = true;
                     }
                     _initialized = !_initialized;
@@ -251,7 +252,7 @@ namespace UnitySimplified.Serialization
         private void DoSetValue(object value, bool notify)
         {
             #if UNITY_EDITOR
-            if (UnityObjectUtility.IsObjectInPrefabEdit(this))
+            if (this.IsInPrefabEditMode())
                 return;
             #endif
 

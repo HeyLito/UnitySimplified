@@ -4,8 +4,9 @@ using System.Reflection;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
-using UnitySimplified;
+using UnitySimplified.Collections;
 using UnitySimplified.Serialization;
+using UnitySimplified.RuntimeDatabases;
 
 namespace UnitySimplifiedEditor.Serialization
 {
@@ -16,11 +17,14 @@ namespace UnitySimplifiedEditor.Serialization
         private enum WindowTabs { None = default, Creator, Settings, Info, Description, ScriptingAPI }
 
         [SerializeField] private GamePref dummyPref;
+        [SerializeField] private string dummyPrefName;
 
         private Dictionary<string, GamePrefData> _dynamicGamePrefsByIDs = new Dictionary<string, GamePrefData>();
         private Dictionary<string, GamePrefData> _dynamicGamePrefsByKeys = new Dictionary<string, GamePrefData>();
-        private Dictionary<string, GamePrefData> _staticPrefsByIDs = new Dictionary<string, GamePrefData>();
-        private Dictionary<string, GamePrefData> _staticPrefsByKeys = new Dictionary<string, GamePrefData>();
+
+        private Dictionary<string, string> _staticIdentifiersByKeys = new();
+        private Dictionary<string, GamePrefData> _staticGamePrefsByIdentifiers = new();
+
         private SerializableDictionary<string, bool> _propertiesInEditByIDs = new SerializableDictionary<string, bool>();
         private PriorityQueue<int, ((string, GamePrefData), (string, GamePrefData))> _queuedPrefs = new PriorityQueue<int, ((string, GamePrefData), (string, GamePrefData))>();
         private List<KeyValuePair<string, GamePrefData>> _sortedDynamics = new List<KeyValuePair<string, GamePrefData>>();
@@ -102,10 +106,10 @@ namespace UnitySimplifiedEditor.Serialization
             GamePref.onGamePrefUpdated += LoadKeys;
             onGamePrefsUpdated += LoadKeys;
             GamePref.Load();
-            PingLabel.OnPingBegan += () =>
+            EditorGUIExtended.OnPingBegan += () =>
             {
                 _mainWindowTab = WindowTabs.Creator;
-                _scrollPos.y = Mathf.Max(0, (PingLabel.LabelRect.y + PingLabel.LabelRect.height + _scrollViewRect.height / 2) - _scrollViewRect.height);
+                _scrollPos.y = Mathf.Max(0, (EditorGUIExtended.PingPosition.y + EditorGUIExtended.PingPosition.height + _scrollViewRect.height / 2) - _scrollViewRect.height);
             };
         }
         private void OnDisable() => GamePref.onGamePrefUpdated -= LoadKeys;
@@ -138,6 +142,7 @@ namespace UnitySimplifiedEditor.Serialization
             if (!changed)
             {
                 var tempQueuedPrefs = new PriorityQueue<int, ((string, GamePrefData), (string, GamePrefData))>(_queuedPrefs);
+
                 EditorGUILayout.BeginVertical("box");
                 GamePrefType gamePrefType = GamePrefType.None;
                 for (int i = 0, count = tempQueuedPrefs.Count; i < count; i++)
@@ -181,20 +186,23 @@ namespace UnitySimplifiedEditor.Serialization
                         if (gamePrefType.HasFlag(GamePrefType.Dynamic))
                         {
                             persistentIdentifier = pop.Value.Item1.Item1;
-                            prefKey = pop.Value.Item1.Item2.PrefKey;
-                            prefValue = pop.Value.Item1.Item2.PrefValue;
+                            prefKey = pop.Value.Item1.Item2.Key;
+                            prefValue = pop.Value.Item1.Item2.Value;
                         }
                         else if (gamePrefType.HasFlag(GamePrefType.Static))
                         {
                             persistentIdentifier = pop.Value.Item2.Item1;
-                            prefKey = pop.Value.Item2.Item2.PrefKey;
-                            prefValue = pop.Value.Item2.Item2.PrefValue;
+                            prefKey = pop.Value.Item2.Item2.Key;
+                            prefValue = pop.Value.Item2.Item2.Value;
                         }
                         DrawGamePref(gamePrefType, pop.Value.Item1.Item2, pop.Value.Item2.Item2, persistentIdentifier, prefKey, prefValue, _isEditing, ref changed);
                     }
                 }
                 EditorGUILayout.EndVertical();
             }
+
+            dummyPrefName = EditorGUIExtended.EditableLabel(EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight), dummyPrefName);
+
             EditorGUILayout.EndScrollView();
             if (evt.type == EventType.Repaint)
                 _scrollViewRect = GUILayoutUtility.GetLastRect();
@@ -215,9 +223,10 @@ namespace UnitySimplifiedEditor.Serialization
             EditorGUILayout.EndHorizontal();
             GUILayout.Space(6);
 
+            GamePrefData staticPrefData = null;
             bool dynamicExists = _dynamicGamePrefsByKeys.ContainsKey(_tempKey);
-            bool staticExists = _staticPrefsByKeys.TryGetValue(_tempKey, out GamePrefData staticPrefData);
-            bool staticExistsWithDifferentType = staticExists && !TypeIsSupported(staticPrefData.GetPrefType(), _tempType);
+            bool staticExists = _staticIdentifiersByKeys.TryGetValue(_tempKey, out string staticIdentifier) && _staticGamePrefsByIdentifiers.TryGetValue(staticIdentifier, out staticPrefData);
+            bool staticExistsWithDifferentType = staticExists && !TypeIsSupported(staticPrefData.ValueType, _tempType);
 
             _tempKey = EditorGUILayout.TextField(new GUIContent("Key"), _tempKey);
             if (dynamicExists)
@@ -250,8 +259,7 @@ namespace UnitySimplifiedEditor.Serialization
             if (valueType != _tempType || _tempValue == null)
                 _tempValue = GetDefaultValueOfSupportedType(valueType);
             _tempType = valueType;
-
-            _tempValue = EditorGUILayoutExtras.ObjectField(new GUIContent("Value"), _tempValue);
+            _tempValue = EditorGUILayoutExtended.ObjectField(new GUIContent("Value"), _tempValue, _tempValue.GetType());
 
             GUILayout.Space(5);
             EditorGUILayout.BeginHorizontal();
@@ -262,8 +270,8 @@ namespace UnitySimplifiedEditor.Serialization
                     throw new Exception($"The value of the newly created {typeof(GamePref).Name} is NULL.");
 
                 if (staticExists)
-                    GamePrefStorage.Instance.AddGamePrefData(CreateGamePrefData(staticPrefData.PersistentIdentifier, _tempKey, _tempValue));
-                else GamePrefStorage.Instance.AddGamePrefData(CreateGamePrefData(GetNewPref().PersistentIdentifier, _tempKey, _tempValue));
+                    GamePrefStorage.Instance.AddGamePrefData(CreateGamePrefData(staticPrefData.Identifier, _tempKey, _tempValue));
+                else GamePrefStorage.Instance.AddGamePrefData(CreateGamePrefData(GetNewPref().Identifier, _tempKey, _tempValue));
                 EditorUtility.SetDirty(GamePrefStorage.Instance);
                 onGamePrefsUpdated?.Invoke();
                 changed = true;
@@ -512,19 +520,19 @@ namespace UnitySimplifiedEditor.Serialization
             GUI.color = color;
             EditorGUILayout.EndHorizontal();
         }
-        private void DrawGamePref(GamePrefType gamePrefType, GamePrefData dynamicData, GamePrefData staticData, string persistentID, string prefKey, object prefValue, bool isEditing, ref bool changed)
+        private void DrawGamePref(GamePrefType gamePrefType, GamePrefData dynamicData, GamePrefData staticData, string identifier, string key, object prefValue, bool isEditing, ref bool changed)
         {
             Event evt = Event.current;
-            GUIContent labelContent = new GUIContent($"{prefKey}{(_debugMode ? $", ({prefValue.GetType().Name})" : "")}");
+            GUIContent labelContent = new GUIContent($"{key}{(_debugMode ? $", ({prefValue.GetType().Name})" : "")}");
 
             Rect groupRect = EditorGUILayout.BeginVertical("box");
             Rect labelRect = GUILayoutUtility.GetRect(labelContent, EditorStyles.label, GUILayout.MaxWidth(position.width - 32));
 
             bool isEditingThisPref = false;
             if (isEditing && !_debugMode)
-                if (_propertiesInEditByIDs.TryGetValue($"{persistentID}.{gamePrefType}", out isEditingThisPref))
-                    isEditingThisPref = _propertiesInEditByIDs[$"{persistentID}.{gamePrefType}"] = EditorGUI.Foldout(labelRect, isEditingThisPref, labelContent.text, true);
-                else _propertiesInEditByIDs[$"{persistentID}.{gamePrefType}"] = false;
+                if (_propertiesInEditByIDs.TryGetValue($"{identifier}.{gamePrefType}", out isEditingThisPref))
+                    isEditingThisPref = _propertiesInEditByIDs[$"{identifier}.{gamePrefType}"] = EditorGUI.Foldout(labelRect, isEditingThisPref, labelContent.text, true);
+                else _propertiesInEditByIDs[$"{identifier}.{gamePrefType}"] = false;
             else EditorGUI.LabelField(labelRect, labelContent);
 
             if (isEditingThisPref || _debugMode)
@@ -535,43 +543,43 @@ namespace UnitySimplifiedEditor.Serialization
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField(new GUIContent("PersistentID"), GUILayout.Width(EditorGUIUtility.labelWidth));
                     EditorGUI.indentLevel -= 2;
-                    EditorGUI.SelectableLabel(GUILayoutUtility.GetRect(new GUIContent(persistentID), WordWrapLabelStyle), persistentID, WordWrapLabelStyle);
+                    EditorGUI.SelectableLabel(GUILayoutUtility.GetRect(new GUIContent(identifier), WordWrapLabelStyle), identifier, WordWrapLabelStyle);
                     EditorGUI.indentLevel += 2;
                     EditorGUILayout.EndHorizontal();
                 }
-                string newPrefKey = EditorGUILayout.DelayedTextField(new GUIContent("Key Name"), prefKey);
-                if (newPrefKey != prefKey)
+                string newKey = EditorGUILayout.DelayedTextField(new GUIContent("Key Name"), key);
+                if (newKey != key)
                 {
                     if (gamePrefType.HasFlag(GamePrefType.Dynamic))
                     {
-                        dynamicData.PrefKey = newPrefKey;
+                        dynamicData.Key = newKey;
                         GamePrefStorage.Instance.OverwriteGamePref(dynamicData);
                         EditorUtility.SetDirty(GamePrefStorage.Instance);
                         changed = true;
                     }
                     if (gamePrefType.HasFlag(GamePrefType.Static))
                     {
-                        staticData.PrefKey = newPrefKey;
+                        staticData.Key = newKey;
                         GamePref.Save();
                     }
                 }
 
                 if (gamePrefType.HasFlag(GamePrefType.Dynamic))
                 {
-                    object defaultValue = EditorGUILayoutExtras.ObjectField(new GUIContent("Default Value"), dynamicData.PrefValue);
-                    if (!dynamicData.PrefValue.Equals(defaultValue))
+                    object defaultValue = EditorGUILayoutExtended.ObjectField(new GUIContent("Default Value"), dynamicData.Value, dynamicData.Value.GetType());
+                    if (!dynamicData.Value.Equals(defaultValue))
                     {
-                        dynamicData.PrefValue = defaultValue;
+                        dynamicData.Value = defaultValue;
                         GamePrefStorage.Instance.OverwriteGamePref(dynamicData);
                         EditorUtility.SetDirty(GamePrefStorage.Instance);
                     }
                 }
                 if (gamePrefType.HasFlag(GamePrefType.Static))
                 {
-                    object value = EditorGUILayoutExtras.ObjectField(new GUIContent("Value"), staticData.PrefValue);
-                    if (!staticData.PrefValue.Equals(value))
+                    object value = EditorGUILayoutExtended.ObjectField(new GUIContent("Value"), staticData.Value, staticData.Value.GetType());
+                    if (!staticData.Value.Equals(value))
                     {
-                        staticData.PrefValue = value;
+                        staticData.Value = value;
                         GamePref.Save();
                     }
                 }
@@ -585,15 +593,15 @@ namespace UnitySimplifiedEditor.Serialization
                     {
                         void removeDynamic()
                         {
-                            GamePrefStorage.Instance.Remove(persistentID);
+                            GamePrefStorage.Instance.Remove(identifier);
                             EditorUtility.SetDirty(GamePrefStorage.Instance);
                             onGamePrefsUpdated?.Invoke();
                         }
 
                         void removePersistence()
                         {
-                            _staticPrefsByIDs.Remove(persistentID);
-                            _staticPrefsByKeys.Remove(prefKey);
+                            _staticGamePrefsByIdentifiers.Remove(identifier);
+                            _staticIdentifiersByKeys.Remove(key);
                             GamePref.Save();
                         }
                         GenericMenu contextMenu = new GenericMenu();
@@ -612,13 +620,13 @@ namespace UnitySimplifiedEditor.Serialization
                             contextMenu.AddItem(new GUIContent("Remove"), false, removePersistence);
                             if (!gamePrefType.HasFlag(GamePrefType.Dynamic))
                             {
-                                void convertToConjoined()
+                                void ConvertToConjoined()
                                 {
                                     GamePrefStorage.Instance.AddGamePrefData(CreateGamePrefData(staticData));
                                     EditorUtility.SetDirty(GamePrefStorage.Instance);
                                     onGamePrefsUpdated?.Invoke();
                                 }
-                                contextMenu.AddItem(new GUIContent("Convert to Conjoined"), false, convertToConjoined);
+                                contextMenu.AddItem(new GUIContent("Convert to Conjoined"), false, ConvertToConjoined);
                             }
                         }
                         contextMenu.ShowAsContext();
@@ -627,11 +635,32 @@ namespace UnitySimplifiedEditor.Serialization
             }
             EditorGUILayout.EndVertical();
 
-            if (Event.current.type == EventType.Repaint)
-                PingLabel.SetCurrentLabel(labelContent, !isEditing || _debugMode ? labelRect : new Rect(labelRect.x + 13, labelRect.y, labelRect.width, labelRect.height));
+            if (Event.current.type == EventType.Repaint && labelContent.text == _pingPrefKey)
+            {
+                bool canStart = _wantsToPing;
+                bool canDraw = EditorGUIExtended.IsPinging;
+                Rect pingPosition = default;
+                if (canStart || canDraw)
+                {
+                    pingPosition = !isEditing || _debugMode
+                        ? labelRect
+                        : new Rect(labelRect.x + 13, labelRect.y, labelRect.width, labelRect.height);
+                }
+                if (canStart)
+                {
+                    _wantsToPing = false;
+                    EditorGUIExtended.PingStart(pingPosition, labelContent);
+                }
+                if (canDraw)
+                {
+                    EditorGUIExtended.PingUpdate(pingPosition);
+                    Repaint();
+                }
+            }
         }
 
-        private static GamePref GetNewPref() => typeof(GamePref).GetMethod("GetNewPref", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new object[0]) as GamePref;
+
+        private static GamePref GetNewPref() => typeof(GamePref).GetMethod("Create", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new object[0]) as GamePref;
         private static GamePrefData CreateGamePrefData(string persistentIdentifier, string prefKey, object prefValue) => Activator.CreateInstance(typeof(GamePrefData), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { persistentIdentifier, prefKey, prefValue }, null, null) as GamePrefData;
         private static GamePrefData CreateGamePrefData(GamePrefData gamePrefData) => Activator.CreateInstance(typeof(GamePrefData), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { gamePrefData }, null, null) as GamePrefData;
         private void LoadKeys()
@@ -641,21 +670,21 @@ namespace UnitySimplifiedEditor.Serialization
             _dynamicGamePrefsByKeys.Clear();
             foreach (var pair in dynamicGamePrefs)
             {
-                _dynamicGamePrefsByIDs.Add(pair.Value.PersistentIdentifier, pair.Value);
-                _dynamicGamePrefsByKeys.Add(pair.Value.PrefKey, pair.Value);
+                _dynamicGamePrefsByIDs.Add(pair.Value.Identifier, pair.Value);
+                _dynamicGamePrefsByKeys.Add(pair.Value.Key, pair.Value);
             }
-            _staticPrefsByIDs = typeof(GamePref).GetField("_gamePrefsByIDs", BindingFlags.NonPublic | BindingFlags.Static).GetValue(typeof(GamePref)) as Dictionary<string, GamePrefData>;
-            _staticPrefsByKeys = typeof(GamePref).GetField("_gamePrefsByKeys", BindingFlags.NonPublic | BindingFlags.Static).GetValue(typeof(GamePref)) as Dictionary<string, GamePrefData>;
+            _staticIdentifiersByKeys = typeof(GamePref).GetField("IdentifiersByKeys", BindingFlags.NonPublic | BindingFlags.Static).GetValue(typeof(GamePref)) as Dictionary<string, string>;
+            _staticGamePrefsByIdentifiers = typeof(GamePref).GetField("GamePrefsByIdentifiers", BindingFlags.NonPublic | BindingFlags.Static).GetValue(typeof(GamePref)) as Dictionary<string, GamePrefData>;
             _sortedDynamics = new List<KeyValuePair<string, GamePrefData>>(_dynamicGamePrefsByIDs);
             _sortedDynamics.Sort(SortPairs);
-            _sortedPersistants = new List<KeyValuePair<string, GamePrefData>>(_staticPrefsByIDs);
+            _sortedPersistants = new List<KeyValuePair<string, GamePrefData>>(_staticGamePrefsByIdentifiers);
             _sortedPersistants.Sort(SortPairs);
             
             _queuedPrefs.Clear();
             HashSet<string> closed = new HashSet<string>();
             foreach (var pair in _sortedDynamics)
             {
-                if (_staticPrefsByIDs.TryGetValue(pair.Key, out var otherValue))
+                if (_staticGamePrefsByIdentifiers.TryGetValue(pair.Key, out var otherValue))
                 {
                     _queuedPrefs.Add(2, ((pair.Key, pair.Value), (pair.Key, otherValue)));
                     closed.Add(pair.Key);
@@ -679,6 +708,14 @@ namespace UnitySimplifiedEditor.Serialization
             Repaint();
         }
 
+        private bool _wantsToPing;
+        private string _pingPrefKey;
+        internal void PingPref(string prefKey)
+        {
+            _wantsToPing = true;
+            _pingPrefKey = prefKey;
+        }
+
         internal static int SortPairs(KeyValuePair<string, GamePrefData> lhs, KeyValuePair<string, GamePrefData> rhs)
         {
             //int result = lhs.Value.prefValue.GetType().Name.CompareTo(rhs.Value.prefValue.GetType().Name);
@@ -686,10 +723,10 @@ namespace UnitySimplifiedEditor.Serialization
             //    return result;
             //return lhs.Value.prefKey.CompareTo(rhs.Value.prefKey);
 
-            int result = lhs.Value.PrefKey.CompareTo(rhs.Value.PrefKey);
+            int result = lhs.Value.Key.CompareTo(rhs.Value.Key);
             if (result == -1)
                 return result;
-            return lhs.Value.PrefValue.GetType().Name.CompareTo(rhs.Value.PrefValue.GetType().Name);
+            return lhs.Value.Value.GetType().Name.CompareTo(rhs.Value.Value.GetType().Name);
         }
         private object GetDefaultValueOfSupportedType(ValueType valueType)
         {

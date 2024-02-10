@@ -3,6 +3,7 @@ using System.Reflection;
 using UnityEngine;
 using UnityEditor;
 using UnitySimplified.Serialization;
+using UnitySimplified.RuntimeDatabases;
 
 namespace UnitySimplifiedEditor.Serialization
 {
@@ -20,12 +21,12 @@ namespace UnitySimplifiedEditor.Serialization
             {
                 GamePrefData gamePrefData = null;
                 GamePref gamePref = property.FindPropertyRelative("gamePref").ExposeProperty(_flags) as GamePref;
-                bool hasID = gamePref != null && GamePrefStorage.Instance.HasID(gamePref.PersistentIdentifier, out gamePrefData);
+                bool hasIdentifier = gamePref != null && GamePrefStorage.Instance.TryGetFromIdentifier(gamePref.Identifier, out gamePrefData);
 
-                if (hasID)
+                if (hasIdentifier)
                 {
                     propCount += 2;
-                    height += EditorGUI.GetPropertyHeight(property.FindPropertyRelative($"on{GamePrefTransput.InfoContainer.TypeToTransputType(gamePrefData.GetPrefType())}ValueChanged"));
+                    height += EditorGUI.GetPropertyHeight(property.FindPropertyRelative($"on{GamePrefTransput.InfoContainer.TypeToTransputType(gamePrefData.ValueType)}ValueChanged"));
                 }
                 else
                 {
@@ -42,12 +43,12 @@ namespace UnitySimplifiedEditor.Serialization
             SerializedProperty gamePrefKeyProp = property.FindPropertyRelative("gamePrefKey");
             GamePref gamePref = gamePrefProp.ExposeProperty(_flags) as GamePref;
             GamePrefData gamePrefData = null;
-            bool hasID = gamePref != null && GamePrefStorage.Instance.HasID(gamePref.PersistentIdentifier, out gamePrefData);
+            bool hasIdentifier = gamePref != null && GamePrefStorage.Instance.TryGetFromIdentifier(gamePref.Identifier, out gamePrefData);
             bool isExpanded = property.isExpanded;
 
             Rect previous = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
 
-            label.text = hasID ? $"{gamePrefData.PrefKey} ({typeof(GamePref).Name})" : !string.IsNullOrEmpty(gamePrefKeyProp.stringValue) ? $"{gamePrefKeyProp.stringValue} (string key)" : label.text;
+            label.text = hasIdentifier ? $"{gamePrefData.Key} ({typeof(GamePref).Name})" : !string.IsNullOrEmpty(gamePrefKeyProp.stringValue) ? $"{gamePrefKeyProp.stringValue} (string key)" : label.text;
             if (isExpanded = EditorGUI.Foldout(previous, isExpanded, label, true))
             {
                 SerializedProperty loadOnProp = property.FindPropertyRelative("loadOn");
@@ -57,8 +58,8 @@ namespace UnitySimplifiedEditor.Serialization
 
                 EditorGUI.PropertyField(gamePrefRect, gamePrefProp);
 
-                if (hasID)
-                    onValueChangedProp = property.FindPropertyRelative($"on{GamePrefTransput.InfoContainer.TypeToTransputType(gamePrefData.GetPrefType())}ValueChanged");
+                if (hasIdentifier)
+                    onValueChangedProp = property.FindPropertyRelative($"on{GamePrefTransput.InfoContainer.TypeToTransputType(gamePrefData.ValueType)}ValueChanged");
                 else
                 {
                     SerializedProperty transputTypeProp = property.FindPropertyRelative("transputType");
