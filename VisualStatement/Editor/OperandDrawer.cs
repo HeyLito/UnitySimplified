@@ -1,9 +1,11 @@
 using System;
 using System.Reflection;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEditor;
 using UnitySimplified;
+using UnitySimplified.Collections;
 using UnityObject = UnityEngine.Object;
 
 namespace UnitySimplifiedEditor 
@@ -17,8 +19,7 @@ namespace UnitySimplifiedEditor
 
         #region METHODS
         #region PROPERTY_DRAWER
-        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
-        {   return base.GetPropertyHeight(property, label) * 2 + 4;   }
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label) => base.GetPropertyHeight(property, label) * 2 + 4;
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             VisualStatement.Operand operand = property.ExposeProperty(VisualStatementUtility.flags | BindingFlags.NonPublic) as VisualStatement.Operand;
@@ -59,7 +60,9 @@ namespace UnitySimplifiedEditor
                     {
                         EditorGUI.BeginChangeCheck();
                         EditorGUI.BeginProperty(genericMenuFieldRect, GUIContent.none, valueTypeProp);
-                        var newValue = EditorGUIExtras.ObjectField(genericObjectFieldRect, operand.GetValueObject(), valueType);
+                        var newValue = EditorGUIExtended.ObjectField(genericObjectFieldRect, operand.GetValueObject(), valueType);
+                        //Debug.Log($"{operand.GetValueObject()}, {valueType}");
+                        //EditorGUI.DrawRect(genericObjectFieldRect, Color.cyan);
                         if (EditorGUI.EndChangeCheck())
                         {
                             property.serializedObject.ApplyModifiedProperties();
@@ -164,88 +167,87 @@ namespace UnitySimplifiedEditor
         private GenericMenuSelection HandleGenericMenu(Rect position, Type type, string path, UnityObject obj, GUIStyle style)
         {
             Event evt = Event.current;
-            int currentIndex = -1;
-            GUIContent content = new GUIContent("No Function");
+            int selectedIndex = -1;
+            GUIContent content = new("No Function");
             List<string> contextPathsList;
-            Dictionary<int, ValueTuple<string, UnityObject>> tuplesByPaths = new Dictionary<int, ValueTuple<string, UnityObject>>();
+            Dictionary<int, ValueTuple<string, UnityObject>> tuplesByPaths = new();
 
-            GameObject gObj = null;
-            if (obj != null)
+            if (evt.type is EventType.Repaint)
             {
-                if (obj is GameObject)
-                    gObj = obj as GameObject;
-                else if (obj is Component)
-                    gObj = (obj as Component).gameObject;
-                
-                content = !string.IsNullOrEmpty(path) ? gObj ? new GUIContent($"{obj.GetType().Name}.{path}") : new GUIContent(path) : content;
+                if (obj != null)
+                {
+                    if (obj is GameObject or Component)
+                        content = !string.IsNullOrEmpty(path) ? new GUIContent($"{obj.GetType().Name}.{path}") : content;
+                    else content = new GUIContent(path);
+                }
             }
-
             if (evt.type == EventType.ExecuteCommand && evt.commandName == PopupInfo.commandMessage || evt.type == EventType.MouseDown && evt.button == 0 && position.Contains(evt.mousePosition))
             {
                 contextPathsList = new List<string>();
-                if (gObj)
-                {
-                    var candidates = new List<UnityObject> { gObj };
-                    foreach (var component in gObj.GetComponents<Component>())
-                        if (component != null)
-                            candidates.Add(component);
+                var candidates = new List<UnityObject> { };
 
-                    for (int i = 0, j = 0; i < candidates.Count; i++)
-                    {
-                        var orderedOptions = GetGenericMenuOptions(candidates[i], true);
-                        while (orderedOptions.Pop(out (string indexedPath, string contextPath, string memberPath) pop))
-                        {
-                            if (pop.indexedPath == $"{obj.GetType().Name}.{path}")
-                                currentIndex = j;
-                            contextPathsList.Add(pop.contextPath);
-                            tuplesByPaths[j] = (pop.memberPath, candidates[i]);
-                            j++;
-                        }
-                    }
-                }
-                else if (obj is ScriptableObject)
+                switch (obj)
                 {
-                    int index = 0;
-                    var orderedOptions = GetGenericMenuOptions(obj, true);
+                    case GameObject or Component:
+                    {
+                        GameObject gObj;
+                        if (obj is GameObject gameObject)
+                            gObj = gameObject;
+                        else gObj = ((Component)obj).gameObject;
+                        candidates.Add(gObj);
+                        candidates.AddRange(gObj.GetComponents<Component>().Where(component => component != null));
+                        break;
+                    }
+                    case ScriptableObject:
+                        candidates.Add(obj);
+                        break;
+                }
+
+                for (int i = 0, j = 0; i < candidates.Count; i++)
+                {
+                    var orderedOptions = GetGenericMenuOptions(candidates[i], true);
                     while (orderedOptions.Pop(out (string indexedPath, string contextPath, string memberPath) pop))
                     {
                         if (pop.indexedPath == $"{obj.GetType().Name}.{path}")
-                            currentIndex = index;
+                            selectedIndex = j;
                         contextPathsList.Add(pop.contextPath);
-                        tuplesByPaths[index] = (pop.memberPath, obj);
-                        index++;
+                        tuplesByPaths[j] = (pop.memberPath, candidates[i]);
+                        j++;
                     }
                 }
             }
             else contextPathsList = new List<string>();
 
-            var selected = GenericMenuField(position, content, currentIndex, contextPathsList.ToArray(), style);
-            if (evt.commandName == PopupInfo.commandMessage && selected > -1 && tuplesByPaths.TryGetValue(selected, out var value))
+            selectedIndex = MemberSelectionField(position, content, selectedIndex, contextPathsList.ToArray(), style);
+            if (evt.commandName == PopupInfo.commandMessage && selectedIndex > -1 && tuplesByPaths.TryGetValue(selectedIndex, out var value))
                 return new GenericMenuSelection(value.Item2, value.Item1);
-            else return new GenericMenuSelection("");
+            return new GenericMenuSelection("");
         }
-        private int GenericMenuField(Rect position, GUIContent content, int selectedIndex, string[] paths, GUIStyle style)
+
+        private static int MemberSelectionField(Rect position, GUIContent content, int selectedIndex, IReadOnlyList<string> paths, GUIStyle style)
         {
             if (style == null || style == GUIStyle.none)
                 style = EditorStyles.popup;
 
             Event evt = Event.current;
-            int controlID = GUIUtility.GetControlID(FocusType.Keyboard);
-            var selected = PopupInfo.GetValueForControl(controlID, selectedIndex);
+            int control = GUIUtility.GetControlID(FocusType.Keyboard);
+            var selected = PopupInfo.GetValueForControl(control, selectedIndex);
+
+            EditorGUI.DrawRect(position, Color.cyan);
 
             switch (Event.current.type)
             {
                 case EventType.MouseDown:
                     if (evt.button == 0 && position.Contains(evt.mousePosition))
                     {
-                        PopupInfo.instance = new PopupInfo(controlID);
+                        PopupInfo.instance = new PopupInfo(control);
 
-                        GenericMenu menu = new GenericMenu();
+                        var menu = new GenericMenu();
                         menu.AddItem(new GUIContent("No Function"), selectedIndex == -1, () => PopupInfo.instance.SetValueDelegate(-1));
-                        if (paths.Length > 0)
+                        if (paths.Count > 0)
                         {
                             menu.AddSeparator("");
-                            for (int i = 0; i < paths.Length; i++)
+                            for (int i = 0; i < paths.Count; i++)
                             {
                                 int current = i;
                                 menu.AddItem(new GUIContent(paths[i]), i == selectedIndex, () => PopupInfo.instance.SetValueDelegate(current));
@@ -253,12 +255,12 @@ namespace UnitySimplifiedEditor
                         }
                         menu.DropDown(position);
 
-                        GUIUtility.keyboardControl = controlID;
+                        GUIUtility.keyboardControl = control;
                         evt.Use();
                     }
                     break;
                 case EventType.Repaint:
-                    style.Draw(position, content, controlID, false, position.Contains(Event.current.mousePosition));
+                    style.Draw(position, content, control, false, position.Contains(Event.current.mousePosition));
                     break;
             }
             return selected;
@@ -266,7 +268,7 @@ namespace UnitySimplifiedEditor
         #endregion
     }
 
-    sealed class GenericMenuSelection
+    internal sealed class GenericMenuSelection
     {
         public readonly UnityObject target;
         public readonly string path;
@@ -275,7 +277,7 @@ namespace UnitySimplifiedEditor
             get
             {
                 string[] splitPath = path.Split('/');
-                return splitPath[splitPath.Length - 1];
+                return splitPath[^1];
             } 
         } 
 
