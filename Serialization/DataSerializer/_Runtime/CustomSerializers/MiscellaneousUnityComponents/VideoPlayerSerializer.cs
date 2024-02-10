@@ -47,7 +47,7 @@ namespace UnitySimplified.Serialization
                 if (flags.HasFlag(SerializerFlags.RuntimeReference))
                 {
                     object reference = null;
-                    DataSerializer.AddPostSerializerAction(delegate { DataSerializerUtility.DeserializeFieldReference("camera", out object reference, fieldData, typeof(UnityObject)); });
+                    DataSerializer.AddPostSerializerAction(delegate { DataSerializerUtility.DeserializeFieldReference("camera", out reference, fieldData); });
                     DataSerializer.AddPostSerializerAction(delegate { obj.targetCamera = (Camera)reference; });
                 }
             }

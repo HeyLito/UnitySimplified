@@ -3,10 +3,11 @@ using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityObject = UnityEngine.Object;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
+using UnitySimplified.RuntimeDatabases;
+using UnityObject = UnityEngine.Object;
 
 namespace UnitySimplified.Serialization
 {
@@ -87,14 +88,14 @@ namespace UnitySimplified.Serialization
             if (!(asset as UnityObject))
                 return false;
 
-            if (asset is GameObject gameObjectAsset && PrefabStorage.Instance.ContainsPrefab(gameObjectAsset, out string key))
+            if (asset is GameObject gameObjectAsset && RuntimePrefabDatabase.Instance.TryGet(gameObjectAsset, out string key))
             {
                 fieldData[fieldName] = key;
                 return true;
             }
-            if (AssetStorage.Instance.SupportsType(asset.GetType()))
+            if (RuntimeAssetDatabase.Instance.SupportsType(asset.GetType()))
             {
-                AssetStorage.Instance.TryGetID(asset as UnityObject, out key);
+                RuntimeAssetDatabase.Instance.TryGet(asset as UnityObject, out key);
                 fieldData[fieldName] = key;
                 return true;
             }
@@ -109,13 +110,13 @@ namespace UnitySimplified.Serialization
 
             if (assetType.IsAssignableFrom(typeof(GameObject)))
             {
-                PrefabStorage.Instance.ContainsID(fieldStringValue, out GameObject result);
+                RuntimePrefabDatabase.Instance.TryGet(fieldStringValue, out GameObject result);
                 asset = result;
                 return true;
             }
-            if (AssetStorage.Instance.SupportsType(assetType))
+            if (RuntimeAssetDatabase.Instance.SupportsType(assetType))
             {
-                AssetStorage.Instance.TryGetAsset(fieldStringValue, out UnityObject result);
+                RuntimeAssetDatabase.Instance.TryGet(fieldStringValue, out UnityObject result);
                 asset = result;
                 return true;
             }
@@ -128,15 +129,15 @@ namespace UnitySimplified.Serialization
         #region REFERENCE_SERIALIZER
         public static bool SerializeFieldReference(string fieldName, object referenceObject, IDictionary<string, object> fieldData, Type typeIndexer)
         {
-            if (!ReferenceStorage.Instance.TryGetIdentifier(referenceObject, typeIndexer, out string identifier))
+            if (!RuntimeReferenceDatabase.Instance.TryGet(referenceObject, out string identifier))
                 return false;
             fieldData[fieldName] = identifier;
             return true;
         }
-        public static bool DeserializeFieldReference(string fieldName, out object referenceObject, IDictionary<string, object> fieldData, Type typeIndexer)
+        public static bool DeserializeFieldReference(string fieldName, out object referenceObject, IDictionary<string, object> fieldData)
         {
             if (fieldData.TryGetValue(fieldName, out object fieldValue) && fieldValue is string stringValue)
-                if (ReferenceStorage.Instance.TryGetObject(stringValue, typeIndexer, out referenceObject))
+                if (RuntimeReferenceDatabase.Instance.TryGet(stringValue, out referenceObject))
                     return true;
             referenceObject = null;
             return false;
@@ -173,7 +174,7 @@ namespace UnitySimplified.Serialization
 
                 if (fieldValue != null && !FindCustomSerializer(fieldPair.Value.FieldType, out _))
                 {
-                    ObjectData objectData = new ObjectData(fieldPair.Value.FieldType, new ReferenceData(fieldValue, typeof(UnityObject)));
+                    ObjectData objectData = new(fieldPair.Value.FieldType, new ReferenceData(fieldValue));
                     DataSerializer.SerializeIntoData(fieldValue, objectData.fieldData, flags);
                     fieldData[fieldPair.Key] = objectData;
                 }
@@ -219,7 +220,7 @@ namespace UnitySimplified.Serialization
                 else if (flags.HasFlag(SerializerFlags.AssetReference) && DeserializeFieldAsset(field.Name, out object asset, field.FieldType, fieldData))
                     field.SetValue(instance, asset);
                 else if (flags.HasFlag(SerializerFlags.RuntimeReference) && field.FieldType != typeof(string) && dataValue is string)
-                    AddInitializeReferenceAction(delegate { if (DeserializeFieldReference(field.Name, out object unityObject, fieldData, typeof(UnityObject))) field.SetValue(instance, unityObject); });
+                    AddInitializeReferenceAction(delegate { if (DeserializeFieldReference(field.Name, out object unityObject, fieldData)) field.SetValue(instance, unityObject); });
                 else if (FieldIsSerializable(field, flags))
                     field.SetValue(instance, dataValue);
                 //else if (dataValue is Newtonsoft.Json.Linq.JObject)

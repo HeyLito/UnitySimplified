@@ -74,17 +74,17 @@ namespace UnitySimplified.Serialization
         /// </param>
         /// 
         /// <param name="referenceObject">
-        /// Used to create a new <see cref="SerializableReference(object, Type)"/>.
+        /// Used to create a new <see cref="ReferenceData(object)"/>.
         /// </param>
         /// 
         /// <param name="typeIndexer">
-        /// Used to create a new <see cref="SerializableReference(object, Type)"/>.
+        /// Used to create a new <see cref="ReferenceData(object)"/>.
         /// </param>
-        public ObjectData(Type type, object referenceObject, Type typeIndexer)
+        public ObjectData(Type type, object referenceObject)
         {
             name = type.FullName;
             assemblyQualifiedName = type.AssemblyQualifiedName;
-            referenceData = new ReferenceData(referenceObject, typeIndexer);
+            referenceData = new ReferenceData(referenceObject);
         }
 
         /// <summary>
@@ -139,17 +139,17 @@ namespace UnitySimplified.Serialization
         /// </param>
         /// 
         /// <param name="referenceObject">
-        /// Used to create a new <see cref="SerializableReference(object, Type)"/>.
+        /// Used to create a new <see cref="ReferenceData(object)"/>.
         /// </param>
         /// 
         /// <param name="typeIndexer">
-        /// Used to create a new <see cref="SerializableReference(object, Type)"/>.
+        /// Used to create a new <see cref="ReferenceData(object)"/>.
         /// </param>
-        public ObjectData(string name, string assemblyQualifiedName, object referenceObject, Type typeIndexer)
+        public ObjectData(string name, string assemblyQualifiedName, object referenceObject)
         {
             this.name = name;
             this.assemblyQualifiedName = assemblyQualifiedName;
-            referenceData = new ReferenceData(referenceObject, typeIndexer);
+            referenceData = new ReferenceData(referenceObject);
         }
 
         /// <summary>
