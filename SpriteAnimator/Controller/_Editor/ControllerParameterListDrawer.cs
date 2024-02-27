@@ -1,12 +1,11 @@
 #if UNITY_EDITOR
 
 using System;
-using System.Reflection;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using UnityEditorInternal;
+using UnitySimplified;
 using UnitySimplified.SpriteAnimator.Controller;
 using UnitySimplified.SpriteAnimator.Parameters;
 
@@ -23,17 +22,17 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
         [InitializeOnLoadMethod]
         private static void FindCustomParameters()
         {
-            var parameterAssembly = typeof(Parameter<>).Assembly;
             Type genericParameterType = typeof(Parameter<>);
-            foreach (var type in parameterAssembly.GetTypes())
-            {
-                var baseType = type.BaseType;
-                if (baseType is not { IsGenericType: true })
-                    continue;
-                var genericTypeDef = baseType.GetGenericTypeDefinition();
-                if (genericTypeDef != null && genericTypeDef.IsAssignableFrom(genericParameterType))
-                    CustomParameterTypes.Add(type);
-            }
+            foreach (var assembly in ApplicationUtility.GetAssemblies())
+                foreach (var type in ApplicationUtility.GetTypesFromAssembly(assembly))
+                {
+                    var baseType = type.BaseType;
+                    if (baseType is not { IsGenericType: true })
+                        continue;
+                    var genericTypeDef = baseType.GetGenericTypeDefinition();
+                    if (genericTypeDef != null && genericTypeDef.IsAssignableFrom(genericParameterType))
+                        CustomParameterTypes.Add(type);
+                }
         }
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
@@ -41,21 +40,20 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
             SerializedProperty itemsProp = property.FindPropertyRelative("_items");
             return DrawableLists.GetList(itemsProp, () => InitializeList(itemsProp)).GetHeight();
         }
+
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             SerializedProperty itemsProp = property.FindPropertyRelative("_items");
             ReorderableList parametersList = DrawableLists.GetList(itemsProp, () => InitializeList(itemsProp));
             Rect parametersRect = new(position) { height = parametersList.GetHeight() };
-            
+
             EditorGUI.BeginChangeCheck();
             parametersList.DoList(parametersRect);
             if (EditorGUI.EndChangeCheck())
                 parametersList.serializedProperty.serializedObject.ApplyModifiedProperties();
         }
 
-
-
-        private ReorderableList InitializeList(SerializedProperty serializedProperty) => new(serializedProperty.serializedObject, serializedProperty)
+        private static ReorderableList InitializeList(SerializedProperty serializedProperty) => new(serializedProperty.serializedObject, serializedProperty)
         {
             drawHeaderCallback = (rect) =>
             {
@@ -74,39 +72,25 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
             },
             onAddDropdownCallback = (rect, list) =>
             {
+                if (list.serializedProperty.serializedObject.targetObject is not SpriteAnimatorController controller)
+                    return;
+
                 GenericMenu genericMenu = new();
-                foreach (var type in CustomParameterTypes)
+                foreach (var parameterType in CustomParameterTypes)
                 {
-                    var parameterType = type;
-                    string parameterName = type.Name;
+                    string parameterName = parameterType.Name;
                     genericMenu.AddItem(new GUIContent(parameterName), false, () =>
                     {
-                        const BindingFlags bindingFlags = BindingFlags.Instance | 
-                                                          BindingFlags.NonPublic | 
-                                                          BindingFlags.Public | 
-                                                          BindingFlags.DeclaredOnly;
-
-                        if (list.serializedProperty.ExposePropertyInfo(bindingFlags, out FieldInfo listInfo, out object previousObj, out _, true))
-                        {
-                            var exposedList = (IList)listInfo.GetValue(previousObj);
-                            if (exposedList != null)
-                            {
-                                var controller =
-                                    list.serializedProperty.serializedObject.targetObject as SpriteAnimatorController;
-                                Undo.RecordObject(controller, "Add Controller Parameter");
-                                exposedList.Add(new ControllerParameter(controller, parameterType));
-                                list.serializedProperty.serializedObject.ApplyModifiedProperties();
-                                list.serializedProperty.serializedObject.Update();
-                            }
-                            else throw new NullReferenceException();
-                        }
-                        else throw new NotSupportedException();
+                        Undo.RecordObject(controller, "Add Controller Parameter");
+                        controller.InternalParameters.Add(new ControllerParameter(controller, parameterType));
+                        ((ISerializationCallbackReceiver)controller).OnAfterDeserialize();
+                        list.serializedProperty.serializedObject.ApplyModifiedProperties();
+                        list.serializedProperty.serializedObject.Update();
                     });
                 }
-
                 genericMenu.DropDown(rect);
             },
-            elementHeightCallback = (index) => EditorGUI.GetPropertyHeight(serializedProperty.GetArrayElementAtIndex(index))
+            elementHeightCallback = index => EditorGUI.GetPropertyHeight(serializedProperty.GetArrayElementAtIndex(index))
         };
     }
 }

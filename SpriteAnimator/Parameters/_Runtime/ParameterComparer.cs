@@ -7,7 +7,7 @@ namespace UnitySimplified.SpriteAnimator.Parameters
     public class ParameterComparer
     {
         [SerializeField]
-        private int selection = 0;
+        private int _selection = 0;
 
         public virtual string[] Options => new[]
         {
@@ -16,8 +16,8 @@ namespace UnitySimplified.SpriteAnimator.Parameters
             };
         public virtual int Selection
         {
-            get => selection;
-            set => selection = value >= 0 && value < Options.Length ? value : -1;
+            get => _selection;
+            set => _selection = value >= 0 && value < Options.Length ? value : -1;
         }
 
         public virtual bool Compare(object lhs, object rhs)
@@ -33,7 +33,7 @@ namespace UnitySimplified.SpriteAnimator.Parameters
         public ParameterComparer Copy()
         {
             var comparer = new ParameterComparer();
-            comparer.selection = selection;
+            comparer._selection = _selection;
             return comparer;
         }
     }

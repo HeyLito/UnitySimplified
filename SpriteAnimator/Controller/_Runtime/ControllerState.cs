@@ -19,9 +19,9 @@ namespace UnitySimplified.SpriteAnimator.Controller
         [SerializeField]
         private string _name;
         [SerializeField]
-        private MotionReference _motion;
-        [SerializeField, HideInInspector]
         private string _identifier;
+        [SerializeField]
+        private MotionReference _motion;
         [SerializeField, HideInInspector]
         private bool _isGlobal;
         [SerializeField, HideInInspector]

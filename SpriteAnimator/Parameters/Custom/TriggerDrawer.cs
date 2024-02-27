@@ -17,12 +17,12 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Parameters
 
 
 
-        public override float GetPropertyHeight(SerializedProperty property, GUIContent label) => EditorGUI.GetPropertyHeight(property.FindPropertyRelative("value"));
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label) => EditorGUI.GetPropertyHeight(property.FindPropertyRelative("_value"));
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             int controlID = GUIUtility.GetControlID(FocusType.Keyboard, position);
             bool missingLabel = label == null || label == GUIContent.none;
-            SerializedProperty valueProp = property.FindPropertyRelative("value");
+            SerializedProperty valueProp = property.FindPropertyRelative("_value");
             Rect previousRect = new Rect(position) { };
             Rect labelRect = previousRect = new Rect(previousRect) { x = previousRect.x, width = !missingLabel ? EditorGUIUtility.labelWidth : 0 };
             Rect fieldRect = previousRect = new Rect(previousRect) { x = previousRect.x + previousRect.width, width = (position.x + position.width) - (previousRect.x + previousRect.width) };

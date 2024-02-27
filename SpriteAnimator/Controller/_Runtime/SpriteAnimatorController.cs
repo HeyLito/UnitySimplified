@@ -117,11 +117,21 @@ namespace UnitySimplified.SpriteAnimator.Controller
         {
             for (int i = _transitions.Count - 1; i >= 0; i--)
             {
-                if (!TryGetStateFromIdentifier(_transitions[i].GetInIdentifier(), out _) ||
-                    !TryGetStateFromIdentifier(_transitions[i].GetOutIdentifier(), out _))
+                string transitionAsMessage = $"Indexed <b>ControllerTransition</b>(<color=yellow>{_transitions[i].GetIdentifier()}</color>) at [{i}]";
+                if (!_identifiablesByIdentifiers.TryGetValue(_transitions[i].GetIdentifier(), out _))
                 {
-                    Debug.Log($"Empty controller transition: {_transitions[i]}");
-                    //controllerTransitions.RemoveValueAt(i);
+                    Debug.LogError($"{transitionAsMessage} is not contained by the controller.");
+                    continue;
+                }
+                if (!TryGetStateFromIdentifier(_transitions[i].GetInIdentifier(), out _))
+                {
+                    Debug.LogError($"{transitionAsMessage} can not locate <b>ControllerState</b>(<color=yellow>{_transitions[i].GetInIdentifier()}</color>).");
+                    continue;
+                }
+                if (!TryGetStateFromIdentifier(_transitions[i].GetOutIdentifier(), out _))
+                {
+                    Debug.LogError($"{transitionAsMessage} can not locate <b>ControllerState</b>(<color=yellow>{_transitions[i].GetOutIdentifier()}</color>).");
+                    continue;
                 }
             }
         }

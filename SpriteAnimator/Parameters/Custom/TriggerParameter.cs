@@ -10,7 +10,7 @@ namespace UnitySimplified.SpriteAnimator.Parameters
         private class Reference : ParameterReference<TriggerParameter, Trigger> { }
 
         public TriggerParameter(KeywordReference name) : base(name, new TriggerComparer()) { }
-        public TriggerParameter(KeywordReference name, bool value) : this(name, value, false) { }
+        public TriggerParameter(KeywordReference name, bool value) : this(name, value, true) { }
         private TriggerParameter(KeywordReference name, Trigger lhs, Trigger rhs) : base(name, new TriggerComparer(), lhs, rhs) { }
 
 

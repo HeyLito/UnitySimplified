@@ -10,7 +10,7 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
     [CustomPropertyDrawer(typeof(SpriteAnimatorController.ControllerTransitionList))]
     internal class ControllerTransitionListDrawer : PropertyDrawer
     {
-        private readonly PropertyDrawableReorderableList _drawableLists = new PropertyDrawableReorderableList();
+        private readonly PropertyDrawableReorderableList _drawableLists = new();
 
 
 
@@ -33,7 +33,7 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
         }
         #endregion
 
-        private ReorderableList InitializeReorderableList(SerializedProperty serializedProperty)
+        private static ReorderableList InitializeReorderableList(SerializedProperty serializedProperty)
         {
             ReorderableList list = new(serializedProperty.serializedObject, serializedProperty) { displayAdd = false };
             list.drawHeaderCallback = (rect) =>
@@ -46,11 +46,10 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
             {
                 EditorGUI.BeginChangeCheck();
                 EditorGUI.PropertyField(rect, list.serializedProperty.GetArrayElementAtIndex(index));
-                if (EditorGUI.EndChangeCheck())
-                {
-                    list.serializedProperty.serializedObject.ApplyModifiedProperties();
-                    list.serializedProperty.serializedObject.Update();
-                }
+                if (!EditorGUI.EndChangeCheck())
+                    return;
+                list.serializedProperty.serializedObject.ApplyModifiedProperties();
+                list.serializedProperty.serializedObject.Update();
             };
             list.elementHeightCallback = (index) => EditorGUI.GetPropertyHeight(list.serializedProperty.GetArrayElementAtIndex(index));
             return list;
