@@ -15,7 +15,9 @@ namespace UnitySimplified.Serialization.Containers
         private SerializableDictionary<string, Accessor> accessors = new();
         
         [NonSerialized]
-        private static Dictionary<Type, Type> _accessorTypesByValueTypes;
+        private static readonly List<(Type type, Accessor instance)> Accessors = new();
+        [NonSerialized]
+        private static readonly Dictionary<Type, Type> AccessorTypesByValueTypes = new();
 
         public int Count => accessors.Count;
         public IEnumerable<string> Keys => accessors.Keys;
@@ -46,9 +48,6 @@ namespace UnitySimplified.Serialization.Containers
         ICollection<string> IDictionary<string, Accessor>.Keys => accessors.Keys;
         IEnumerable<Accessor> IReadOnlyDictionary<string, Accessor>.Values => accessors.Values;
         ICollection<Accessor> IDictionary<string, Accessor>.Values => accessors.Values;
-
-
-
         Accessor IDictionary<string, Accessor>.this[string key]
         {
             get
@@ -101,7 +100,6 @@ namespace UnitySimplified.Serialization.Containers
         void ISerializationCallbackReceiver.OnBeforeSerialize() => ((ISerializationCallbackReceiver)accessors).OnBeforeSerialize();
         void ISerializationCallbackReceiver.OnAfterDeserialize() => ((ISerializationCallbackReceiver)accessors).OnAfterDeserialize();
         
-
         IEnumerator IEnumerable.GetEnumerator() => throw new NotImplementedException();
 
         void IDictionary<string, object>.Add(string key, object value) => DoTryAdd(key, value);
@@ -123,7 +121,6 @@ namespace UnitySimplified.Serialization.Containers
         bool ICollection<KeyValuePair<string, object>>.Contains(KeyValuePair<string, object> item) => DoContains(item);
         void ICollection<KeyValuePair<string, object>>.Add(KeyValuePair<string, object> item) => throw new NotImplementedException();
         bool ICollection<KeyValuePair<string, object>>.Remove(KeyValuePair<string, object> item) => throw new NotImplementedException();
-
 
         private void DoClear() => accessors.Clear();
         private bool DoContainsKey(string key)
@@ -149,9 +146,7 @@ namespace UnitySimplified.Serialization.Containers
             if (string.IsNullOrEmpty(key))
                 throw new ArgumentNullException(nameof(key));
             if (accessor == null)
-#pragma warning disable IDE0016
                 throw new ArgumentNullException(nameof(accessor));
-#pragma warning restore IDE0016
 
             accessors[key] = accessor;
         }
@@ -164,15 +159,13 @@ namespace UnitySimplified.Serialization.Containers
             if (value is Accessor)
                 throw new InvalidOperationException();
 
-            InitializeAccessorDataTypes();
-            if (!_accessorTypesByValueTypes.TryGetValue(value.GetType(), out Type accessorValueType))
+            if (!TryGetAccessorTypeFromValue(value, out Type accessorValueType))
                 return;
 
             var result = (Accessor)Activator.CreateInstance(accessorValueType);
             result.Set(value);
             accessors[key] = result;
         }
-
         private bool DoTryAdd(string key, Accessor accessor)
         {
             if (string.IsNullOrEmpty(key))
@@ -192,8 +185,7 @@ namespace UnitySimplified.Serialization.Containers
             if (value is Accessor)
                 throw new InvalidOperationException();
 
-            InitializeAccessorDataTypes();
-            if (!_accessorTypesByValueTypes.TryGetValue(value.GetType(), out Type accessorValueType))
+            if (!TryGetAccessorTypeFromValue(value, out Type accessorValueType))
                 return false;
 
             var accessor = (Accessor)Activator.CreateInstance(accessorValueType);
@@ -247,33 +239,37 @@ namespace UnitySimplified.Serialization.Containers
             return true;
         }
 
+        private bool TryGetAccessorTypeFromValue(object value, out Type accessorType)
+        {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
+            Type valueType = value.GetType();
+
+            if (AccessorTypesByValueTypes.TryGetValue(valueType, out accessorType))
+                return accessorType != null;
+
+            AccessorTypesByValueTypes[valueType] = null;
+            foreach (var (type, instance) in Accessors)
+            {
+                if (instance.CanAccess(valueType))
+                    AccessorTypesByValueTypes[valueType] = accessorType = type;
+            }
+            return accessorType != null;
+        }
+
         [RuntimeInitializeOnLoadMethod]
         private static void InitializeAccessorDataTypes()
         {
-            if (_accessorTypesByValueTypes != null)
-                return;
-            _accessorTypesByValueTypes = new Dictionary<Type, Type>();
-
-            Type objectType = typeof(object);
-            Type accessorDataType = typeof(Accessor);
-            Type accessorGenericDataType = typeof(Accessor<>);
+            Type accessorType = typeof(Accessor);
+            Type accessorGenericType = typeof(Accessor<>);
             foreach (var assembly in ApplicationUtility.GetAssemblies())
             foreach (var type in ApplicationUtility.GetTypesFromAssembly(assembly))
             {
-                if (!accessorDataType.IsAssignableFrom(type) || accessorDataType == type || type == accessorGenericDataType)
+                if (type == accessorType || type == accessorGenericType)
                     continue;
-
-                Type valueType = null;
-                Type currentType = type;
-                while (currentType is { BaseType: { } baseType } && baseType != objectType && valueType == null)
-                {
-                    baseType = currentType.BaseType;
-                    if (baseType.IsGenericType)
-                        valueType = baseType.GenericTypeArguments.FirstOrDefault();
-                    currentType = baseType;
-                }
-                if (valueType != null)
-                    _accessorTypesByValueTypes[valueType] = type;
+                if (accessorType.IsAssignableFrom(type))
+                    Accessors.Add((type, (Accessor)Activator.CreateInstance(type)));
             }
         }
     }

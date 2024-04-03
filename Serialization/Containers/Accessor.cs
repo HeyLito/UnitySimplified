@@ -8,8 +8,9 @@ namespace UnitySimplified.Serialization.Containers
     [Serializable]
     public abstract class Accessor
     {
-        public virtual void Set(object value) { }
-        public virtual void Get(out object value) => value = null;
+        public abstract bool CanAccess(Type valueType);
+        public abstract void Set(object value);
+        public abstract void Get(out object value);
     }
 
     [Serializable]
@@ -18,11 +19,12 @@ namespace UnitySimplified.Serialization.Containers
         public abstract void Set(T value);
         public abstract void Get(out T value);
 
-        public override void Set(object value)
+        public sealed override bool CanAccess(Type valueType) => valueType == typeof(T);
+        public sealed override void Set(object value)
         {
             Set((T)value);
         }
-        public override void Get(out object value)
+        public sealed override void Get(out object value)
         {
             Get(out T genericValue);
             value = genericValue;
