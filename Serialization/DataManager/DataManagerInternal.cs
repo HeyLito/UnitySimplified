@@ -10,7 +10,7 @@ namespace UnitySimplified.Serialization
     internal sealed class DataManagerInternal
     {
         [Serializable]
-        internal struct File
+        internal class File
         {
             [SerializeField]
             private string identifier;
@@ -24,9 +24,9 @@ namespace UnitySimplified.Serialization
             [NonSerialized]
             private IDataFormatter _formatter;
 
-            public readonly string Identifier => identifier;
-            public readonly string Name => name;
-            public readonly string Path => path;
+            public string Identifier => identifier;
+            public string Name => name;
+            public string Path => path;
             public IDataFormatter Formatter
             {
                 get
@@ -42,7 +42,7 @@ namespace UnitySimplified.Serialization
                     return _formatter;
                 }
             }
-            public readonly string FullPath => System.IO.Path.Combine(Path, Name);
+            public string FullPath => System.IO.Path.Combine(Path, Name);
 
             public File(string identifier, string name, string path, IDataFormatter formatter)
             {
@@ -54,7 +54,7 @@ namespace UnitySimplified.Serialization
             }
         }
         [Serializable]
-        internal struct FileDatabase
+        internal class FileDatabase
         {
             [SerializeField]
             private string filePath;
@@ -68,9 +68,9 @@ namespace UnitySimplified.Serialization
             [NonSerialized]
             private readonly Dictionary<string, File> _cachedFileEntriesByIDs;
 
-            public readonly string FilePath => filePath;
-            public readonly string FileName => fileName;
-            public readonly string FullFilePath => Path.Combine(filePath, fileName);
+            public string FilePath => filePath;
+            public string FileName => fileName;
+            public string FullFilePath => Path.Combine(filePath, fileName);
 
             public FileDatabase(string filePath, string fileName)
             {
@@ -81,7 +81,7 @@ namespace UnitySimplified.Serialization
                 _cachedFileEntriesByIDs = new Dictionary<string, File>();
             }
 
-            public readonly void VerifyFiles(List<File> filesModified, List<File> filesAbsent)
+            public void VerifyFiles(List<File> filesModified, List<File> filesAbsent)
             {
                 _tempFiles.Clear();
                 foreach (File file in _cachedFileEntriesByIDs.Values)
@@ -101,18 +101,18 @@ namespace UnitySimplified.Serialization
                 }
                 filesModified?.Clear();
             }
-            public readonly void AddFileEntry(File file)
+            public void AddFileEntry(File file)
             {
                 if (!_cachedFileEntriesByIDs.TryAdd(file.Identifier, file))
                     throw new Exception($"Already contains {nameof(file.Identifier)}: {file.Identifier}");
             }
-            public readonly void RemoveFileEntry(File file)
+            public void RemoveFileEntry(File file)
             {
                 if (!_cachedFileEntriesByIDs.Remove(file.Identifier))
                     throw new Exception($"Does not contain {nameof(file.Identifier)}: {file.Identifier}");
             }
 
-            public readonly bool TryGetFileEntry(string fileIdentifier, out File file) => _cachedFileEntriesByIDs.TryGetValue(fileIdentifier, out file);
+            public bool TryGetFileEntry(string fileIdentifier, out File file) => _cachedFileEntriesByIDs.TryGetValue(fileIdentifier, out file);
 
             public void OnBeforeSerialization()
             {

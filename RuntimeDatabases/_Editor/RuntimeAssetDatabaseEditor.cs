@@ -41,7 +41,7 @@ namespace UnitySimplifiedEditor.RuntimeDatabases
             _runtimeAssetDatabase = target as RuntimeAssetDatabase;
             if (_runtimeAssetDatabase == null || _runtimeAssetDatabase.Items == null)
                 return;
-            _itemsReorderableList = RuntimeDatabaseEditorUtility.ReorderableListTemplate(_runtimeAssetDatabase.Items, typeof(KeyValuePair<string, UnityObject>), "Identified Assets", 
+            _itemsReorderableList = RuntimeDatabaseEditorUtility.ReorderableListTemplate(_runtimeAssetDatabase.Items, typeof(KeyValuePair<string, UnityObject>), "Identified Assets",
                 actionOnClear: () =>
                 {
                     Undo.RecordObject(_runtimeAssetDatabase, "Clear");

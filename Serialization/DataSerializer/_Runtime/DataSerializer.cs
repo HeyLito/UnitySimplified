@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using UnitySimplified.Serialization.Containers;
 
 namespace UnitySimplified.Serialization
 {
@@ -48,10 +50,9 @@ namespace UnitySimplified.Serialization
         /// </summary>
         /// <param name="instance">
         /// </param>
-        /// <param name="fieldData"></param>
+        /// <param name="output"></param>
         /// <param name="flags"></param>
-
-        public static void SerializeIntoData(object instance, Dictionary<string, object> fieldData, SerializerFlags flags)
+        public static void Serialize(object instance, IDictionary<string, object> output, SerializerFlags flags)
         {
             if (DataSerializerUtility.SerializerMode != DataSerializerUtility.SerializerModeType.Serializing)
             {
@@ -60,11 +61,11 @@ namespace UnitySimplified.Serialization
             }
 
             if (DataSerializerUtility.FindCustomSerializer(instance.GetType(), out var serializer))
-                serializer.Serialize(instance, fieldData, flags);
-            else DataSerializerUtility.Serialize(instance, fieldData, flags);
+                serializer.Serialize(instance, output, flags);
+            else DataSerializerUtility.Serialize(instance, output, flags);
         }
-        public static void DeserializeIntoInstance(object instance, Dictionary<string, object> fieldData, SerializerFlags flags) => DeserializeIntoInstance(ref instance, fieldData, flags);
-        public static void DeserializeIntoInstance(ref object instance, Dictionary<string, object> fieldData, SerializerFlags flags)
+        public static void Deserialize(object instance, IDictionary<string, object> input, SerializerFlags flags) => Deserialize(ref instance, input, flags);
+        public static void Deserialize(ref object instance, IDictionary<string, object> input, SerializerFlags flags)
         {
             if (DataSerializerUtility.SerializerMode != DataSerializerUtility.SerializerModeType.Deserializing)
             {
@@ -73,8 +74,8 @@ namespace UnitySimplified.Serialization
             }
 
             if (DataSerializerUtility.FindCustomSerializer(instance.GetType(), out var serializer))
-                serializer.Deserialize(ref instance, fieldData, flags);
-            else DataSerializerUtility.Deserialize(instance, fieldData, flags);
+                serializer.Deserialize(ref instance, input, flags);
+            else DataSerializerUtility.Deserialize(instance, input, flags);
         }
     }
 }

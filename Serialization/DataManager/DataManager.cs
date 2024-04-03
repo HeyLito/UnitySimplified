@@ -82,6 +82,11 @@ namespace UnitySimplified.Serialization
         /// </summary>
         private static void DoLoadDatabase()
         {
+            if (string.IsNullOrEmpty(TargetDataPath) || !Directory.Exists(TargetDataPath))
+            {
+                Debug.LogWarning($"[DataManagerError, DatabaseDirectory] Path from {nameof(TargetDataPath)} returned \"{TargetDataPath}\", which is invalid.");
+                return;
+            }
             if (debug)
                 Debug.Log($"[DataManagerMessage, DatabaseDirectory] Loading {nameof(TargetDataPath)} database from directory path \"{TargetDataPath}\".");
 

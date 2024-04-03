@@ -12,12 +12,12 @@ namespace UnitySimplified.RuntimeDatabases
     public class RuntimePrefabDatabase : RuntimeDatabase<RuntimePrefabDatabase>
     {
         [SerializeField, HideInInspector] 
-        private SerializableDictionary<string, GameObject> _prefabsByKeys = new();
+        private SerializableDictionary<string, GameObject> prefabsByKeys = new();
         [SerializeField, HideInInspector]
-        private SerializableDictionary<GameObject, string> _keysByPrefabs = new();
+        private SerializableDictionary<GameObject, string> keysByPrefabs = new();
 
 
-        internal IList Items => _prefabsByKeys;
+        internal IList Items => prefabsByKeys;
 
 
 
@@ -31,16 +31,16 @@ namespace UnitySimplified.RuntimeDatabases
 
         public bool Contains(string id) => TryGet(id, out _);
         public bool Contains(GameObject gameObject) => TryGet(gameObject, out _);
-        public bool TryGet(string id, out GameObject prefab) => _prefabsByKeys.TryGetValue(id, out prefab);
-        public bool TryGet(GameObject prefab, out string id) => _keysByPrefabs.TryGetValue(prefab, out id);
+        public bool TryGet(string id, out GameObject prefab) => prefabsByKeys.TryGetValue(id, out prefab);
+        public bool TryGet(GameObject prefab, out string id) => keysByPrefabs.TryGetValue(prefab, out id);
 
         internal void Clear()
         {
             if (Application.isPlaying)
                 return;
 
-            _prefabsByKeys.Clear();
-            _keysByPrefabs.Clear();
+            prefabsByKeys.Clear();
+            keysByPrefabs.Clear();
         }
         internal bool TryAdd(GameObject prefab)
         {
@@ -51,10 +51,10 @@ namespace UnitySimplified.RuntimeDatabases
 
             string id;
             do id = Guid.NewGuid().ToString();
-            while (_prefabsByKeys.ContainsKey(id));
+            while (prefabsByKeys.ContainsKey(id));
 
-            _prefabsByKeys[id] = prefab;
-            _keysByPrefabs[prefab] = id;
+            prefabsByKeys[id] = prefab;
+            keysByPrefabs[prefab] = id;
             return true;
         }
         internal bool TryRemove(string id)
@@ -64,8 +64,8 @@ namespace UnitySimplified.RuntimeDatabases
             if (!TryGet(id, out var prefab))
                 return false;
             
-            _prefabsByKeys.Remove(id);
-            _keysByPrefabs.Remove(prefab);
+            prefabsByKeys.Remove(id);
+            keysByPrefabs.Remove(prefab);
             return true;
         }
         internal bool TryRemove(GameObject prefab)
@@ -75,8 +75,8 @@ namespace UnitySimplified.RuntimeDatabases
             if (!TryGet(prefab, out string id))
                 return false;
 
-            _prefabsByKeys.Remove(id);
-            _keysByPrefabs.Remove(prefab);
+            prefabsByKeys.Remove(id);
+            keysByPrefabs.Remove(prefab);
             return true;
         }
     }

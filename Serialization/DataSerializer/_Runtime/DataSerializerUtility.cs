@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Reflection;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
+using UnitySimplified.RuntimeDatabases;
+using UnitySimplified.Serialization.Containers;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
-using UnitySimplified.RuntimeDatabases;
 using UnityObject = UnityEngine.Object;
 
 namespace UnitySimplified.Serialization
@@ -145,91 +145,104 @@ namespace UnitySimplified.Serialization
         #endregion
 
 
-        private static readonly Dictionary<string, FieldInfo> TempFieldInfos = new();
-        #region FUNCTIONS_SYSTEM.OBJECT_SERIALIZER
-        public static void Serialize(object instance, IDictionary<string, object> fieldData, SerializerFlags flags)
+        public static bool OnTrySerializeField((object instance, FieldInfo info) context, string name, object value, IDictionary<string, object> output, SerializerFlags flags)
+        {
+            if (value == null)
+                return false;
+
+            var fieldType = context.info.FieldType;
+            if (!FindCustomSerializer(fieldType, out IDataSerializable customSerializer))
+            {
+                if (fieldType.IsGenericType)
+                {
+                    fieldType = fieldType.GetGenericTypeDefinition();
+                    if (!FindCustomSerializer(fieldType, out customSerializer))
+                        return false;
+                }
+                else return false;
+            }
+
+            ObjectData objectData = new(fieldType, new ReferenceData(value));
+            customSerializer.Serialize(value, objectData.accessors, flags);
+            output[name] = objectData;
+            return true;
+
+        }
+
+        public static bool OnTryDeserializeField((object instance, FieldInfo info) context, string name, object value, IDictionary<string, object> input, SerializerFlags flags)
+        {
+            if (value is not ObjectData objectData)
+                return false;
+
+            var fieldType = context.info.FieldType;
+            if (!FindCustomSerializer(fieldType, out IDataSerializable customSerializer))
+            {
+                if (fieldType.IsGenericType)
+                {
+                    fieldType = fieldType.GetGenericTypeDefinition();
+                    if (!FindCustomSerializer(fieldType, out customSerializer))
+                        return false;
+                }
+                else return false;
+            }
+
+            if (!objectData.reference.TryGet(out object objectDataValue))
+            {
+                objectDataValue = context.info.GetValue(context.instance);
+                if (objectDataValue == null)
+                {
+                    if (typeof(UnityObject).IsAssignableFrom(context.info.FieldType))
+                        return false;
+                    objectDataValue = Activator.CreateInstance(context.info.FieldType);
+                }
+                objectData.reference?.Update(objectDataValue);
+            }
+            customSerializer.Deserialize(ref objectDataValue, objectData.accessors, flags);
+            context.info.SetValue(context.instance, objectDataValue);
+            return true;
+        }
+
+        #region FUNCTIONS_SYSTEM.OBJECT_SERIALIZERs
+        public static void Serialize(object instance, IDictionary<string, object> output, SerializerFlags flags)
         {
             var callback = instance as IDataSerializerCallback;
             callback?.OnBeforeSerialization();
 
-            TempFieldInfos.Clear();
-            var currentType = instance.GetType();
-            while (currentType != null && currentType != typeof(object))
+            foreach (var fieldInfo in instance.GetType().GetSerializedFields(typeof(DontSaveField), typeof(NonSerializedAttribute), typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)))
             {
-                foreach (var fieldInfo in currentType.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.DeclaredOnly))
-                    TempFieldInfos.Add(fieldInfo.Name, fieldInfo);
-                currentType = currentType.BaseType;
-            }
+                string fieldKey = fieldInfo.Name;
+                object fieldValue = fieldInfo.GetValue(instance);
 
-            foreach (var fieldPair in TempFieldInfos)
-            {
-                if (fieldPair.Value == null)
-                    continue;
-
-                var attributes = fieldPair.Value.GetCustomAttributes(true);
-                if (attributes.Any(attribute => attribute is NonSerializedAttribute or DontSaveField or System.Runtime.CompilerServices.CompilerGeneratedAttribute))
-                    continue;
-
-                object fieldValue = fieldPair.Value.GetValue(instance);
-
-                if (fieldValue != null && !FindCustomSerializer(fieldPair.Value.FieldType, out _))
-                {
-                    ObjectData objectData = new(fieldPair.Value.FieldType, new ReferenceData(fieldValue));
-                    DataSerializer.SerializeIntoData(fieldValue, objectData.fieldData, flags);
-                    fieldData[fieldPair.Key] = objectData;
-                }
-                else if (flags.HasFlag(SerializerFlags.AssetReference) && SerializeFieldAsset(fieldPair.Key, fieldValue, fieldData))
-                { }
+                if (OnTrySerializeField((instance, fieldInfo), fieldKey, fieldValue, output, flags)) ;
+                else if (flags.HasFlag(SerializerFlags.AssetReference) && SerializeFieldAsset(fieldKey, fieldValue, output));
                 else if (flags.HasFlag(SerializerFlags.RuntimeReference) && fieldValue is UnityObject)
-                    AddInitializeReferenceAction(() => SerializeFieldReference(fieldPair.Key, fieldValue, fieldData, typeof(UnityObject)));
-                else if (FieldIsSerializable(fieldPair.Value, flags))
-                    fieldData[fieldPair.Key] = fieldValue;
+                    AddInitializeReferenceAction(() => SerializeFieldReference(fieldKey, fieldValue, output, typeof(UnityObject)));
+                else if (FieldIsSerializable(fieldInfo, flags))
+                    output[fieldInfo.Name] = fieldValue;
             }
 
             callback?.OnAfterSerialization();
         }
 
-        public static void Deserialize(object instance, IDictionary<string, object> fieldData, SerializerFlags flags)
+        public static void Deserialize(object instance, IDictionary<string, object> input, SerializerFlags flags)
         {
             var callback = instance as IDataSerializerCallback;
             callback?.OnBeforeSerialization();
 
-            TempFieldInfos.Clear();
-            var currentType = instance.GetType();
-            while (currentType != null && currentType != typeof(object))
+            foreach (var fieldInfo in instance.GetType().GetSerializedFields(typeof(DontSaveField), typeof(NonSerializedAttribute), typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)))
             {
-                foreach (var fieldInfo in currentType.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.DeclaredOnly))
-                    TempFieldInfos.Add(fieldInfo.Name, fieldInfo);
-                currentType = currentType.BaseType;
-            }
+                string fieldKey = fieldInfo.Name;
 
-            foreach (var (dataKey, dataValue) in fieldData)
-            {
-                if (!TempFieldInfos.TryGetValue(dataKey, out FieldInfo field))
+                if (!input.TryGetValue(fieldKey, out var accessorValue))
                     continue;
 
-                if (dataValue is ObjectData objectData)
-                {
-                    if (!FindCustomSerializer(field.FieldType, out _))
-                        continue;
-                    var fieldValue = field.GetValue(instance) ?? Activator.CreateInstance(field.FieldType);
-                    objectData.referenceData?.Update(fieldValue);
-                    DataSerializer.DeserializeIntoInstance(ref fieldValue, objectData.fieldData, flags);
-                    field.SetValue(instance, fieldValue);
-                }
-                else if (flags.HasFlag(SerializerFlags.AssetReference) && DeserializeFieldAsset(field.Name, out object asset, field.FieldType, fieldData))
-                    field.SetValue(instance, asset);
-                else if (flags.HasFlag(SerializerFlags.RuntimeReference) && field.FieldType != typeof(string) && dataValue is string)
-                    AddInitializeReferenceAction(delegate { if (DeserializeFieldReference(field.Name, out object unityObject, fieldData)) field.SetValue(instance, unityObject); });
-                else if (FieldIsSerializable(field, flags))
-                    field.SetValue(instance, dataValue);
-                //else if (dataValue is Newtonsoft.Json.Linq.JObject)
-                //{
-                //    Debug.Log($"{field}, {dataValue.GetType().AssemblyQualifiedName}");
-                //    //var fieldValue = field.GetValue(instance) ?? Activator.CreateInstance(field.FieldType);
-                //    //DataSerializer.DeserializeIntoInstance(ref fieldValue, (dataValue as ObjectData).fieldData, flags);
-                //    //field.SetValue(instance, fieldValue);
-                //}
+                if (OnTryDeserializeField((instance, fieldInfo), fieldKey, accessorValue, input, flags)) ;
+                else if (flags.HasFlag(SerializerFlags.AssetReference) && DeserializeFieldAsset(fieldKey, out object asset, fieldInfo.FieldType, input))
+                    fieldInfo.SetValue(instance, asset);
+                else if (flags.HasFlag(SerializerFlags.RuntimeReference) && fieldInfo.FieldType != typeof(string) && accessorValue is string)
+                    AddInitializeReferenceAction(delegate { if (DeserializeFieldReference(fieldInfo.Name, out object unityObject, input)) fieldInfo.SetValue(instance, unityObject); });
+                else if (FieldIsSerializable(fieldInfo, flags))
+                    fieldInfo.SetValue(instance, accessorValue);
             }
 
             callback?.OnAfterSerialization();
@@ -245,27 +258,21 @@ namespace UnitySimplified.Serialization
                 throw new ArgumentNullException(nameof(fieldInfo));
             if (fieldInfo.FieldType == null)
                 throw new NullReferenceException($"{nameof(fieldInfo)}.{nameof(fieldInfo.FieldType)}");
-            if (fieldInfo.FieldType.FullName == null)
-                throw new NullReferenceException($"{nameof(fieldInfo)}.{nameof(fieldInfo.FieldType)}.{nameof(fieldInfo.FieldType.FullName)}");
 
-            bool canBeSerialized = fieldInfo.FieldType.IsSerializable;
-            if (canBeSerialized)
-            {
-                if (fieldInfo.FieldType.IsSerializable)
-                    foreach (var IncompatibleAssembly in IncompatibleAssemblies)
-                        if (fieldInfo.FieldType.FullName.Contains(IncompatibleAssembly))
-                            canBeSerialized = false;
-            }
+            if (!fieldInfo.FieldType.IsSerializable)
+                return false;
 
-            if (canBeSerialized)
-            {
-                if (flags.HasFlag(SerializerFlags.SerializedVariable))
-                    if (fieldInfo.IsPublic || (fieldInfo.IsPrivate && fieldInfo.GetCustomAttribute(typeof(SerializeField)) != null))
-                        return true;
-                if (flags.HasFlag(SerializerFlags.NonSerializedVariable))
-                    if (fieldInfo.IsPrivate)
-                        return true;
-            }
+            foreach (var incompatibleAssembly in IncompatibleAssemblies)
+                if (fieldInfo.FieldType.Assembly.GetName().Name.Contains(incompatibleAssembly))
+                    return false;
+
+            if (flags.HasFlag(SerializerFlags.SerializedVariable))
+                if (fieldInfo.IsPublic || (fieldInfo.IsPrivate && fieldInfo.GetCustomAttribute(typeof(SerializeField)) != null))
+                    return true;
+            if (flags.HasFlag(SerializerFlags.NonSerializedVariable))
+                if (fieldInfo.IsPrivate)
+                    return true;
+
             return false;
         }
         #endregion

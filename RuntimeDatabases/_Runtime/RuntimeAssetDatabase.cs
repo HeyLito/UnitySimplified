@@ -13,9 +13,9 @@ namespace UnitySimplified.RuntimeDatabases
     public class RuntimeAssetDatabase : RuntimeDatabase<RuntimeAssetDatabase>
     {
         [SerializeField, HideInInspector]
-        private SerializableDictionary<string, UnityObject> _assetsByKeys = new();
+        private SerializableDictionary<string, UnityObject> assetsByKeys = new();
         [SerializeField, HideInInspector]
-        private SerializableDictionary<UnityObject, string> _keysByAssets = new();
+        private SerializableDictionary<UnityObject, string> keysByAssets = new();
 
 
         public string[] ValidatedAssetExtensions => new[]
@@ -45,7 +45,7 @@ namespace UnitySimplified.RuntimeDatabases
         };
         
         
-        internal IList Items => _assetsByKeys;
+        internal IList Items => assetsByKeys;
 
 
         protected override void OnCreate()
@@ -60,8 +60,8 @@ namespace UnitySimplified.RuntimeDatabases
 
         public bool Contains(string id) => TryGet(id, out _);
         public bool Contains(UnityObject asset) => TryGet(asset, out _);
-        public bool TryGet(string id, out UnityObject asset) => _assetsByKeys.TryGetValue(id, out asset);
-        public bool TryGet(UnityObject asset, out string id) => _keysByAssets.TryGetValue(asset, out id);
+        public bool TryGet(string id, out UnityObject asset) => assetsByKeys.TryGetValue(id, out asset);
+        public bool TryGet(UnityObject asset, out string id) => keysByAssets.TryGetValue(asset, out id);
         public bool SupportsType(Type type) => type.IsSubclassOf(typeof(ScriptableObject)) || ValidatedAssetTypes.Any(supportedAssetType => supportedAssetType.IsAssignableFrom(type));
 
 
@@ -71,8 +71,8 @@ namespace UnitySimplified.RuntimeDatabases
             if (Application.isPlaying)
                 return;
 
-            _assetsByKeys.Clear();
-            _keysByAssets.Clear();
+            assetsByKeys.Clear();
+            keysByAssets.Clear();
         }
         internal bool TryAdd(UnityObject asset)
         {
@@ -85,10 +85,10 @@ namespace UnitySimplified.RuntimeDatabases
 
             string id;
             do id = Guid.NewGuid().ToString();
-            while (_assetsByKeys.ContainsKey(id));
+            while (assetsByKeys.ContainsKey(id));
 
-            _assetsByKeys[id] = asset;
-            _keysByAssets[asset] = id;
+            assetsByKeys[id] = asset;
+            keysByAssets[asset] = id;
 
             return true;
         }
@@ -99,8 +99,8 @@ namespace UnitySimplified.RuntimeDatabases
             if (!TryGet(id, out UnityObject asset))
                 return false;
 
-            _assetsByKeys.Remove(id);
-            _keysByAssets.Remove(asset);
+            assetsByKeys.Remove(id);
+            keysByAssets.Remove(asset);
             return true;
         }
         internal bool TryRemove(UnityObject asset)
@@ -110,8 +110,8 @@ namespace UnitySimplified.RuntimeDatabases
             if (!TryGet(asset, out string id))
                 return false;
 
-            _assetsByKeys.Remove(id);
-            _keysByAssets.Remove(asset);
+            assetsByKeys.Remove(id);
+            keysByAssets.Remove(asset);
             return true;
         }
     }

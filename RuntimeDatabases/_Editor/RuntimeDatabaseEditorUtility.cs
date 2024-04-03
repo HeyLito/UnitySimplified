@@ -138,12 +138,12 @@ namespace UnitySimplifiedEditor.RuntimeDatabases
             assets.AddRange(assetsFromDirectories.Select(AssetDatabase.LoadAssetAtPath<UnityObject>).Where(asset => asset));
             return assets;
         }
-        public static ReorderableList ReorderableListTemplate(IList elements, Type elementsType, string headerText, Action actionOnClear = null, Action actionOnRepopulate = null)
-        {
-            return new ReorderableList(elements, elementsType, true, true, false, true)
+
+        public static ReorderableList ReorderableListTemplate(IList elements, Type elementsType, string headerText, Action actionOnClear = null, Action actionOnRepopulate = null) =>
+            new(elements, elementsType, true, true, false, true)
             {
                 multiSelect = true,
-                drawHeaderCallback = (position) =>
+                drawHeaderCallback = position =>
                 {
                     EditorGUI.LabelField(position, headerText);
 
@@ -153,16 +153,17 @@ namespace UnitySimplifiedEditor.RuntimeDatabases
                     float repopulateButtonWidth = EditorStyles.toolbarButton.CalcSize(repopulateButtonContent).x;
                     float clearButtonWidth = EditorStyles.toolbarButton.CalcSize(clearButtonContent).x;
 
-                    Rect repopulateButtonRect = new(position) { x = position.x + position.width - repopulateButtonWidth, width = repopulateButtonWidth };
-                    Rect clearButtonRect = new(position) { x = repopulateButtonRect.x - clearButtonWidth, width = clearButtonWidth };
+                    Rect repopulateButtonRect = new(position)
+                        { x = position.x + position.width - repopulateButtonWidth, width = repopulateButtonWidth };
+                    Rect clearButtonRect = new(position)
+                        { x = repopulateButtonRect.x - clearButtonWidth, width = clearButtonWidth };
 
                     if (GUI.Button(repopulateButtonRect, repopulateButtonContent, EditorStyles.toolbarButton))
                         actionOnRepopulate?.Invoke();
                     if (GUI.Button(clearButtonRect, clearButtonContent, EditorStyles.toolbarButton))
                         actionOnClear?.Invoke();
-                },
+                }
             };
-        }
     }
 }
 
