@@ -16,12 +16,11 @@ namespace UnitySimplified.Serialization.Containers
             JObject jObject = new();
 
             var valueType = value.GetType();
-            if (!valueType.IsSerializable)
+            if (!valueType.IsSerializable || !Accessor.TypeToName(valueType, out string valueTypeName))
             {
                 jObject.WriteTo(writer);
                 return;
             }
-            var valueTypeName = $"{valueType.FullName}, {valueType.Assembly.GetName().Name}";
             jObject.Add(new JProperty(_nameofType, JToken.FromObject(valueTypeName, serializer)));
 
             foreach (var fieldInfo in valueType.GetSerializedFields(typeof(JsonIgnoreAttribute)))
@@ -38,8 +37,7 @@ namespace UnitySimplified.Serialization.Containers
             var valueTypeName = (string)valueTypeNameToken.ToObject(typeof(string), serializer);
             if (valueTypeName == null)
                 return null;
-            var valueType = Type.GetType(valueTypeName);
-            if (valueType == null)
+            if (!Accessor.NameToType(valueTypeName, out Type valueType))
                 return null;
             var value = (Accessor)Activator.CreateInstance(valueType);
             if (value == null)

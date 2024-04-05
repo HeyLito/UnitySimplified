@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnitySimplified.Collections;
-// ReSharper disable JoinNullCheckWithUsage
 
 namespace UnitySimplified.Serialization.Containers
 {
@@ -13,11 +12,6 @@ namespace UnitySimplified.Serialization.Containers
     {
         [SerializeField]
         private SerializableDictionary<string, Accessor> accessors = new();
-        
-        [NonSerialized]
-        private static readonly List<(Type type, Accessor instance)> Accessors = new();
-        [NonSerialized]
-        private static readonly Dictionary<Type, Type> AccessorTypesByValueTypes = new();
 
         public int Count => accessors.Count;
         public IEnumerable<string> Keys => accessors.Keys;
@@ -127,6 +121,7 @@ namespace UnitySimplified.Serialization.Containers
         {
             if (string.IsNullOrEmpty(key))
                 throw new ArgumentNullException(nameof(key));
+
             return accessors.TryGetValue(key, out _);
         }
         private bool DoContains(KeyValuePair<string, object> item)
@@ -141,6 +136,35 @@ namespace UnitySimplified.Serialization.Containers
             return false;
         }
 
+        private bool DoTryAdd(string key, Accessor accessor)
+        {
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentNullException(nameof(key));
+            if (accessor == null)
+                throw new ArgumentNullException(nameof(accessor));
+
+            if (accessors.ContainsKey(key))
+                return false;
+            accessors.Add(key, accessor);
+            return true;
+        }
+        private bool DoTryAdd(string key, object value)
+        {
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentNullException(nameof(key));
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+            if (value is Accessor)
+                throw new InvalidOperationException();
+
+            if (accessors.ContainsKey(key))
+                return false;
+            if (!Accessor.TryCreate(value.GetType(), out Accessor accessor))
+                return false;
+            accessor.Set(value);
+            accessors.Add(key, accessor);
+            return true;
+        }
         private void DoSet(string key, Accessor accessor)
         {
             if (string.IsNullOrEmpty(key))
@@ -159,40 +183,11 @@ namespace UnitySimplified.Serialization.Containers
             if (value is Accessor)
                 throw new InvalidOperationException();
 
-            if (!TryGetAccessorTypeFromValue(value, out Type accessorValueType))
-                return;
+            if (!Accessor.TryCreate(value.GetType(), out Accessor accessor))
+                throw new NullReferenceException();
 
-            var result = (Accessor)Activator.CreateInstance(accessorValueType);
-            result.Set(value);
-            accessors[key] = result;
-        }
-        private bool DoTryAdd(string key, Accessor accessor)
-        {
-            if (string.IsNullOrEmpty(key))
-                throw new ArgumentNullException(nameof(key));
-            if (accessor == null)
-                throw new ArgumentNullException(nameof(accessor));
-
-            if (accessors.ContainsKey(key))
-                return false;
-            accessors.Add(key, accessor);
-            return true;
-        }
-        private bool DoTryAdd(string key, object value)
-        {
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
-            if (value is Accessor)
-                throw new InvalidOperationException();
-
-            if (!TryGetAccessorTypeFromValue(value, out Type accessorValueType))
-                return false;
-
-            var accessor = (Accessor)Activator.CreateInstance(accessorValueType);
-            if (!DoTryAdd(key, accessor))
-                return false;
             accessor.Set(value);
-            return true;
+            accessors[key] = accessor;
         }
         private bool DoRemove(string key)
         {
@@ -200,6 +195,13 @@ namespace UnitySimplified.Serialization.Containers
                 throw new ArgumentNullException(nameof(key));
 
             return accessors.Remove(key);
+        }
+        private bool DoTryGetValue(string key, out Accessor accessor)
+        {
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentNullException(nameof(key));
+
+            return accessors.TryGetValue(key, out accessor);
         }
         private bool DoTryGetValue(string key, out object value)
         {
@@ -212,17 +214,8 @@ namespace UnitySimplified.Serialization.Containers
             if (accessor == null)
                 return false;
 
-            accessor.Get(out var result);
-            value = result;
+            accessor.Get(out value);
             return true;
-        }
-
-        private bool DoTryGetValue(string key, out Accessor accessor)
-        {
-            if (string.IsNullOrEmpty(key))
-                throw new ArgumentNullException(nameof(key));
-
-            return accessors.TryGetValue(key, out accessor);
         }
         private bool DoTryGetValue<T>(string key, out T value)
         {
@@ -230,47 +223,16 @@ namespace UnitySimplified.Serialization.Containers
                 throw new ArgumentNullException(nameof(key));
 
             value = default;
-            if (!DoTryGetValue(key, out object genericValue))
+            if (!accessors.TryGetValue(key, out Accessor accessor))
                 return false;
-            if (genericValue is not T valueCast)
+            if (accessor == null)
                 return false;
 
-            value = valueCast;
+            accessor.Get(out var accessorValue);
+            if (accessorValue is not T accessorValueCast)
+                return false;
+            value = accessorValueCast;
             return true;
-        }
-
-        private bool TryGetAccessorTypeFromValue(object value, out Type accessorType)
-        {
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
-
-            Type valueType = value.GetType();
-
-            if (AccessorTypesByValueTypes.TryGetValue(valueType, out accessorType))
-                return accessorType != null;
-
-            AccessorTypesByValueTypes[valueType] = null;
-            foreach (var (type, instance) in Accessors)
-            {
-                if (instance.CanAccess(valueType))
-                    AccessorTypesByValueTypes[valueType] = accessorType = type;
-            }
-            return accessorType != null;
-        }
-
-        [RuntimeInitializeOnLoadMethod]
-        private static void InitializeAccessorDataTypes()
-        {
-            Type accessorType = typeof(Accessor);
-            Type accessorGenericType = typeof(Accessor<>);
-            foreach (var assembly in ApplicationUtility.GetAssemblies())
-            foreach (var type in ApplicationUtility.GetTypesFromAssembly(assembly))
-            {
-                if (type == accessorType || type == accessorGenericType)
-                    continue;
-                if (accessorType.IsAssignableFrom(type))
-                    Accessors.Add((type, (Accessor)Activator.CreateInstance(type)));
-            }
         }
     }
 }

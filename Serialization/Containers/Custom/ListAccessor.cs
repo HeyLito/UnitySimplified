@@ -2,38 +2,48 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnitySimplified.Serialization.Containers;
 
-[Serializable]
-public class ListAccessor : Accessor
+namespace UnitySimplified.Serialization.Containers
 {
-    [SerializeField]
-    private string listType;
-    [SerializeField]
-    private List<object> values = new();
-
-    public override bool CanAccess(Type valueType) => typeof(IList).IsAssignableFrom(valueType);
-
-    public override void Set(object value)
+    [Serializable]
+    public class ListAccessor : Accessor
     {
-        listType = value.GetType().AssemblyQualifiedName;
-        foreach (var item in (IList)value)
-            values.Add(item);
-    }
-    public override void Get(out object value)
-    {
-        value = null;
-        Type valueType = Type.GetType(listType);
-        if (valueType == null)
-            return;
-        value = Activator.CreateInstance(valueType);
-        if (value is not IList valueList)
-            return;
+        [SerializeField]
+        private string listType;
+        [SerializeReference]
+        private List<Accessor> values = new();
 
-        foreach (var item in values)
+        public override bool CanAccess(Type valueType) => typeof(IList).IsAssignableFrom(valueType);
+
+        public override void Set(object value)
         {
-            Debug.Log(item.GetType());
-            valueList.Add(item);
+            listType = value.GetType().FullName;
+            foreach (var item in (IList)value)
+                if (TryCreate(item.GetType(), out Accessor accessor))
+                {
+                    accessor.Set(item);
+                    values.Add(accessor);
+                }
+
+        }
+        public override void Get(out object value)
+        {
+            value = null;
+            Type valueType = Type.GetType(listType);
+            if (valueType == null)
+                return;
+            value = Activator.CreateInstance(valueType);
+            if (value is not IList valueList)
+                return;
+
+            foreach (var accessor in values)
+            {
+                if (accessor is null)
+                    continue;
+
+                accessor.Get(out object accessorValue);
+                valueList.Add(accessorValue);
+            }
         }
     }
 }

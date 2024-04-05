@@ -57,7 +57,7 @@ namespace UnitySimplified.Serialization
 
                     if (ignoreAttributeTypes.Any(ignoreAttributeType => TempCustomAttributes.Contains(ignoreAttributeType)))
                         continue;
-                    if (fieldInfo.IsPublic || (fieldInfo.IsPrivate && TempCustomAttributes.Contains(typeof(SerializeField))))
+                    if (fieldInfo.IsPublic || (fieldInfo.IsPrivate && (TempCustomAttributes.Contains(typeof(SerializeField)) || TempCustomAttributes.Contains(typeof(SerializeReference)))))
                         serializedFieldInfos.Add(fieldInfo);
                 }
                 TempStackedFieldInfos.Push(serializedFieldInfos);
