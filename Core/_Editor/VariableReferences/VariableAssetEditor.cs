@@ -6,8 +6,8 @@ using UnitySimplified.VariableReferences;
 
 namespace UnitySimplifiedEditor.VariableReferences
 {
-    [CustomEditor(typeof(VariableObjectReference<>), true)]
-    public class VariableObjectReferenceEditor : Editor
+    [CustomEditor(typeof(VariableAsset<>), true)]
+    public class VariableObjectEditor : Editor
     {
         private SerializedProperty _scriptProp;
         private SerializedProperty _editorDescriptionProp;
@@ -17,9 +17,9 @@ namespace UnitySimplifiedEditor.VariableReferences
         private void OnEnable()
         {
             _scriptProp = serializedObject.FindProperty("m_Script");
-            _editorDescriptionProp = serializedObject.FindProperty("_editorDescription");
-            _valueProp = serializedObject.FindProperty("_value");
-            _runtimeValueProp = serializedObject.FindProperty("_runtimeValue");
+            _editorDescriptionProp = serializedObject.FindProperty("editorDescription");
+            _valueProp = serializedObject.FindProperty("value");
+            _runtimeValueProp = serializedObject.FindProperty("runtimeValue");
         }
 
         public override void OnInspectorGUI()

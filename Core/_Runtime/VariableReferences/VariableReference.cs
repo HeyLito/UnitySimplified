@@ -1,38 +1,42 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace UnitySimplified.VariableReferences
 {
     [Serializable]
-    public class VariableReference<TValue, TReference> where TReference : IVariableObjectReference<TValue>
+    public class VariableReference<TValue, TReference> where TReference : IVariableAsset<TValue>
     {
         [SerializeField]
-        private bool _useConstant;
+        [FormerlySerializedAs("_useConstant")]
+        private bool valueToggle;
         [SerializeField]
-        private TValue _constantValue;
+        [FormerlySerializedAs("_constantValue")]
+        private TValue constant;
         [SerializeField]
-        private TReference _reference;
+        [FormerlySerializedAs("_reference")]
+        private TReference reference;
 
-        public bool UseConstant { get => _useConstant; protected set => _useConstant = value; }
-        public TValue ConstantValue { get => _constantValue; protected set => _constantValue = value; }
-        public TReference Reference { get => _reference; protected set => _reference = value; }
+        public bool ValueToggle { get => valueToggle; protected set => valueToggle = value; }
+        public TValue Constant { get => constant; protected set => constant = value; }
+        public TReference Reference { get => reference; protected set => reference = value; }
 
-        public VariableReference() => _useConstant = true;
-        public VariableReference(TValue value) : this() => _constantValue = value;
+        public VariableReference() => valueToggle = true;
+        public VariableReference(TValue value) : this() => constant = value;
 
         public TValue Value
         {
-            get => _useConstant || _reference == null ? _constantValue : _reference.GetValue();
+            get => valueToggle || reference == null ? constant : reference.GetValue();
             set
             {
-                if (_useConstant || _reference == null)
-                    _constantValue = value;
-                else _reference.SetValue(value);
+                if (valueToggle || reference == null)
+                    constant = value;
+                else reference.SetValue(value);
             }
         }
     }
     [Serializable]
-    public class VariableReference<T> : VariableReference<T, VariableObjectReference<T>>
+    public class VariableReference<T> : VariableReference<T, VariableAsset<T>>
     {
         public VariableReference() { }
         public VariableReference(T value) : base(value) { }

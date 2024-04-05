@@ -10,7 +10,7 @@ namespace UnitySimplifiedEditor.VariableReferences
     [CustomPropertyDrawer(typeof(VariableReference<,>), true)]
     public class VariableReferenceDrawer : PropertyDrawer
     {
-        private readonly string[] _popupOptions = { "Use Constant", "Use Variable" };
+        private readonly string[] _popupOptions = { "Use Constant", "Use Asset" };
         private GUIStyle _popupStyle;
 
         private GUIStyle PopupStyle => _popupStyle ??= new GUIStyle(GUI.skin.GetStyle("PaneOptions")) 
@@ -21,21 +21,21 @@ namespace UnitySimplifiedEditor.VariableReferences
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             float baseHeight = EditorGUIUtility.singleLineHeight;
-            SerializedProperty useConstantProp = property.FindPropertyRelative("_useConstant");
-            if (useConstantProp.boolValue)
-            {
-                SerializedProperty constantValueProp = property.FindPropertyRelative("_constantValue");
-                float constantValueHeight = EditorGUI.GetPropertyHeight(constantValueProp);
-                if (constantValueProp.isExpanded && constantValueHeight > baseHeight)
-                    return baseHeight + 2 + constantValueHeight;
-            }
+            SerializedProperty valueToggleProp = property.FindPropertyRelative("valueToggle");
+            if (!valueToggleProp.boolValue)
+                return baseHeight;
+
+            SerializedProperty constantProp = property.FindPropertyRelative("constant");
+            float constantPropHeight = EditorGUI.GetPropertyHeight(constantProp);
+            if (constantProp.isExpanded && constantPropHeight > baseHeight)
+                return baseHeight + 2 + constantPropHeight;
             return baseHeight;
         }
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            SerializedProperty useConstantProp = property.FindPropertyRelative("_useConstant");
-            SerializedProperty constantValueProp = property.FindPropertyRelative("_constantValue");
-            SerializedProperty referenceProp = property.FindPropertyRelative("_reference");
+            SerializedProperty valueToggleProp = property.FindPropertyRelative("valueToggle");
+            SerializedProperty constantProp = property.FindPropertyRelative("constant");
+            SerializedProperty referenceProp = property.FindPropertyRelative("reference");
 
             Rect previousRect = new Rect(position) { height = EditorGUIUtility.singleLineHeight };
             label = EditorGUI.BeginProperty(position, label, property);
@@ -48,25 +48,25 @@ namespace UnitySimplifiedEditor.VariableReferences
 
             EditorGUI.BeginChangeCheck();
             Rect buttonRect = previousRect = new Rect(previousRect) { width = PopupStyle.fixedWidth + PopupStyle.margin.right, yMin = previousRect.yMin + PopupStyle.margin.top + 1 };
-            useConstantProp.boolValue = !Convert.ToBoolean(EditorGUI.Popup(buttonRect, !useConstantProp.boolValue ? 1 : 0, _popupOptions, PopupStyle));
+            valueToggleProp.boolValue = !Convert.ToBoolean(EditorGUI.Popup(buttonRect, !valueToggleProp.boolValue ? 1 : 0, _popupOptions, PopupStyle));
 
             Rect fieldValueRect = previousRect = new Rect(previousRect) { width = prefixRect.width, xMin = previousRect.xMax};
-            if (useConstantProp.boolValue)
+            if (valueToggleProp.boolValue)
             {
-                var constantValueHeight = EditorGUI.GetPropertyHeight(constantValueProp);
-                if (constantValueHeight > EditorGUIUtility.singleLineHeight)
+                var constantPropHeight = EditorGUI.GetPropertyHeight(constantProp);
+                if (constantPropHeight > EditorGUIUtility.singleLineHeight)
                 {
-                    if (GUI.Button(fieldValueRect, !constantValueProp.isExpanded ? "Show Value" : "Hide Value"))
-                        constantValueProp.isExpanded = !constantValueProp.isExpanded;
-                    if (constantValueProp.isExpanded)
+                    if (GUI.Button(fieldValueRect, !constantProp.isExpanded ? "Show Value" : "Hide Value"))
+                        constantProp.isExpanded = !constantProp.isExpanded;
+                    if (constantProp.isExpanded)
                     {
                         EditorGUI.indentLevel++;
-                        Rect constantValueRect = previousRect = new Rect(EditorGUI.IndentedRect(position)) { height = constantValueHeight, y = previousRect.yMax + 2 };
+                        Rect constantPropRect = previousRect = new Rect(EditorGUI.IndentedRect(position)) { height = constantPropHeight, y = previousRect.yMax + 2 };
                         EditorGUI.indentLevel--;
-                        EditorGUI.PropertyField(constantValueRect, constantValueProp);
+                        EditorGUI.PropertyField(constantPropRect, constantProp);
                     }
                 }
-                else EditorGUI.PropertyField(fieldValueRect, constantValueProp, GUIContent.none);
+                else EditorGUI.PropertyField(fieldValueRect, constantProp, GUIContent.none);
             }
             else EditorGUI.PropertyField(fieldValueRect, referenceProp, GUIContent.none);
             if (EditorGUI.EndChangeCheck())

@@ -1,9 +1,9 @@
 namespace UnitySimplified.VariableReferences
 {
-    public interface IVariableObjectReference<T>
+    public interface IVariableAsset<T>
     {
         public T GetValue();
         public void SetValue(T value);
-        public void SetValue(IVariableObjectReference<T> otherValue);
+        public void SetValue(IVariableAsset<T> otherValue);
     }
 }
