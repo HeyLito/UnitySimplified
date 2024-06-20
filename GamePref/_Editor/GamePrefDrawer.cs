@@ -1,48 +1,39 @@
-using System.Reflection;
-using System.Collections;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
-using UnitySimplified.Serialization;
-using UnitySimplified.RuntimeDatabases;
+using UnitySimplified.GamePrefs;
 
-namespace UnitySimplifiedEditor.Serialization
+// ReSharper disable Unity.PerformanceCriticalCodeNullComparison
+// ReSharper disable AccessToModifiedClosure
+
+namespace UnitySimplifiedEditor.GamePrefs
 {
     [CustomPropertyDrawer(typeof(GamePref))]
     public class GamePrefDrawer : PropertyDrawer
     {
         private readonly PropertyDrawerElementFilter<(int, int)> _menuSelections = new();
-        private GamePrefStorage _database;
-        private GUIStyle _objectFieldStyle = null;
-        private GUIStyle _objectFieldButtonStyle = null;
+        private GUIStyle _objectFieldStyle;
+        private GUIStyle _objectFieldButtonStyle;
 
         private GUIStyle ObjectFieldStyle => _objectFieldStyle ??= new GUIStyle("ObjectField");
         private GUIStyle ObjectFieldButtonStyle => _objectFieldButtonStyle ??= new GUIStyle("ObjectFieldButton");
 
-        public override float GetPropertyHeight(SerializedProperty property, GUIContent label) => base.GetPropertyHeight(property, label);
+
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            if (_database == null)
-            {
-                _database = GamePrefStorage.Instance;
-                if (_database == null)
-                    return;
-                GamePrefWindow.onGamePrefsUpdated += GUIView.Current.Repaint;
-            }
+            GamePrefLocalDatabase gamePrefLocalDatabase = GamePrefLocalDatabase.Instance;
+            if (gamePrefLocalDatabase == null)
+                throw new NullReferenceException(nameof(gamePrefLocalDatabase));
 
-            var sortedPrefs = new List<KeyValuePair<string, GamePrefData>>(_database.GetGamePrefs());
+            var sortedPrefs = new List<KeyValuePair<string, GamePrefData>>(gamePrefLocalDatabase.GetGamePrefs());
 
             Event evt = Event.current;
-            (FieldInfo, object) gamePrefInfoTuple = property.ExposePropertyInfo(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, out int arrayIndex);
-            GamePref gamePref = (arrayIndex > -1 ? (gamePrefInfoTuple.Item1.GetValue(gamePrefInfoTuple.Item2)as IList)[arrayIndex] : gamePrefInfoTuple.Item1.GetValue(gamePrefInfoTuple.Item2)) as GamePref;
-            GamePrefData gamePrefData = null;
-
-            if (arrayIndex > -1 && label.text == gamePref.Identifier)
-                label.text = $"Element {arrayIndex}";
+            SerializedProperty gamePrefIdentifierProp = property.FindPropertyRelative("identifier");
 
             Rect fieldRect = EditorGUI.PrefixLabel(position, label);
-            Rect buttonRect = new Rect(fieldRect.x + fieldRect.width - 1 - 18, fieldRect.y + 1, 18, 16);
-            bool hasIdentifier = gamePref != null && _database.TryGetFromIdentifier(gamePref.Identifier, out gamePrefData);
+            Rect buttonRect = new(fieldRect.x + fieldRect.width - 1 - 18, fieldRect.y + 1, 18, 16);
+            bool hasIdentifier = gamePrefLocalDatabase.TryGetFromIdentifier(gamePrefIdentifierProp.stringValue, out var gamePrefData);
             int controlIdentifier = GUIUtility.GetControlID(FocusType.Keyboard);
 
             _menuSelections.EvaluateGUIEventChanges(evt);
@@ -58,7 +49,7 @@ namespace UnitySimplifiedEditor.Serialization
                     if (buttonRect.Contains(evt.mousePosition))
                     {
                         GenericMenu options = new();
-                        options.AddItem(new GUIContent("None"), gamePref == null, () => _menuSelections.SetElement(property, (currentIndex, -1)));
+                        options.AddItem(new GUIContent("None"), string.IsNullOrEmpty(gamePrefIdentifierProp.stringValue), () => _menuSelections.SetElement(property, (currentIndex, -1)));
                         if (sortedPrefs.Count > 0)
                             options.AddSeparator("");
 
@@ -66,8 +57,8 @@ namespace UnitySimplifiedEditor.Serialization
                         for (int i = 0; i < sortedPrefs.Count; i++)
                         {
                             int index = i;
-                            currentIndex = gamePref != null && gamePref.Identifier == sortedPrefs[i].Value.Identifier ? index : currentIndex;
-                            options.AddItem(new GUIContent(sortedPrefs[i].Value.Key), currentIndex == index, () => _menuSelections.SetElement(property, (currentIndex, index)));
+                            currentIndex = gamePrefIdentifierProp.stringValue == sortedPrefs[i].Value.identifier ? index : currentIndex;
+                            options.AddItem(new GUIContent(sortedPrefs[i].Value.key), currentIndex == index, () => _menuSelections.SetElement(property, (currentIndex, index)));
                             _menuSelections.SetElement(property, (currentIndex, selectedIndex));
                         }
                         options.DropDown(fieldRect);
@@ -79,7 +70,7 @@ namespace UnitySimplifiedEditor.Serialization
                         window.titleContent = new GUIContent("GamePrefs");
                         window.Show();
                         window.Focus();
-                        window.PingPref(gamePrefData.Key);
+                        window.PingPref(gamePrefData.key);
                         break;
                     }
                     evt.Use();
@@ -90,7 +81,7 @@ namespace UnitySimplifiedEditor.Serialization
                     break;
 
                 case EventType.Repaint:
-                    string labelText = (gamePref != null ? hasIdentifier ? gamePrefData.Key : "Missing" : "None") + $" ({nameof(GamePref)})";
+                    string labelText = (!string.IsNullOrEmpty(gamePrefIdentifierProp.stringValue) ? hasIdentifier ? gamePrefData.key : "Missing" : "None") + $" ({nameof(GamePref)})";
                     ObjectFieldStyle.Draw(fieldRect, new GUIContent(labelText), fieldRect.Contains(evt.mousePosition), false, false, controlIdentifier == GUIUtility.keyboardControl);
                     ObjectFieldButtonStyle.Draw(buttonRect, GUIContent.none, buttonRect.Contains(evt.mousePosition), false, false, false);
                     break;
@@ -99,17 +90,16 @@ namespace UnitySimplifiedEditor.Serialization
             if (selectedIndex > -2 && currentIndex != selectedIndex)
             {
                 sortedPrefs.Sort(GamePrefWindow.SortPairs);
-                SerializedProperty identifierProp = property.FindPropertyRelative("_identifier");
 
                 if (selectedIndex == -1)
                 {
-                    identifierProp.stringValue = "";
+                    gamePrefIdentifierProp.stringValue = "";
                     property.serializedObject.ApplyModifiedProperties();
                     property.serializedObject.Update();
                 }
                 else
                 {
-                    identifierProp.stringValue = sortedPrefs[selectedIndex].Value.Identifier;
+                    gamePrefIdentifierProp.stringValue = sortedPrefs[selectedIndex].Value.identifier;
                     property.serializedObject.ApplyModifiedProperties();
                     property.serializedObject.Update();
                 }

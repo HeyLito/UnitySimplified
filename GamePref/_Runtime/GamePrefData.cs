@@ -1,43 +1,44 @@
 using System;
-using UnityEngine;
 
-namespace UnitySimplified.Serialization
+namespace UnitySimplified.GamePrefs
 {
     [Serializable]
-    public class GamePrefData
+    internal class GamePrefData
     {
-        [SerializeField]
-        private string _identifier;
-        [SerializeField]
-        private string _key;
-        [SerializeField]
-        private object _value;
-        [SerializeField]
-        private string _valueType;
-
-
-        public string Identifier => _identifier;
-        public string Key { get => _key; set => _key = value; }
-        public object Value { get => _value; set => _value = value; }
-        public Type ValueType
-        {
-            get
-            {
-                if (string.IsNullOrEmpty(_identifier) || string.IsNullOrEmpty(_key) || string.IsNullOrEmpty(_valueType) || _value is null)
-                    return null;
-                return Type.GetType(_key);
-            }
-        }
-
+        public string identifier;
+        public string key;
+        public object value;
+        public string valueTypeNamespace;
 
         internal GamePrefData() { }
+        internal GamePrefData(GamePrefData data) : this(data.identifier, data.key, data.value) { }
         internal GamePrefData(string identifier, string key, object value)
         {
-            _identifier = identifier;
-            _key = key;
-            _value = value;
-            _valueType = value.GetType().AssemblyQualifiedName;
+            this.identifier = identifier;
+            this.key = key;
+            this.value = value;
+            valueTypeNamespace = value.GetType().AssemblyQualifiedName;
         }
-        internal GamePrefData(GamePrefData data) : this(data._identifier, data._key, data._value) { }
+
+        public bool IsValid() => !string.IsNullOrEmpty(identifier) && !string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(valueTypeNamespace) && value is not null;
+        public Type GetValueType() => IsValid() ? Type.GetType(valueTypeNamespace) : null;
+        public void OnGet()
+        {
+            if (!IsValid())
+                return;
+
+            var valueType = GetValueType();
+            if (valueType.IsNumericType())
+                value = Convert.ChangeType(value, valueType);
+        }
+        public void OnSet()
+        {
+            if (!IsValid())
+                return;
+
+            var valueType = GetValueType();
+            if (valueType.IsNumericType())
+                value = Convert.ChangeType(value, valueType);
+        }
     }
 }
