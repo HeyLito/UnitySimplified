@@ -65,7 +65,7 @@ namespace UnitySimplified.RuntimeDatabases
         /// <summary>
         /// Returns the asset data container of <see cref="T"/>.
         /// </summary>
-        public static T Instance => _instance ??= Get();
+        public static T Instance => Get();
 
 
 
@@ -74,8 +74,12 @@ namespace UnitySimplified.RuntimeDatabases
 
         private static T Get()
         {
+            if (_instance != null)
+                return _instance;
+
             T instance = Resources.Load<T>(typeof(T).Name);
             bool wasCreated = false;
+
 
             if (instance == null) 
             {
@@ -108,5 +112,7 @@ namespace UnitySimplified.RuntimeDatabases
             instance.OnGet();
             return instance;
         }
+
+        private void OnDestroy() => _instance = null;
     }
 }

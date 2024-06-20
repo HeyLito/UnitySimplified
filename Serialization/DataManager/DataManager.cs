@@ -306,6 +306,16 @@ namespace UnitySimplified.Serialization
 
         private static bool DoContainsFile(string fileIdentifier, out string fileName, out string filePath, out IDataFormatter fileFormatter)
         {
+            if (_fileDirectory == null)
+            {
+                if (debug)
+                    Debug.LogWarning($"[DataManagerError, DatabaseDirectory] {nameof(DataManager)} databases are not loaded or are missing.");
+                fileName = "";
+                filePath = "";
+                fileFormatter = null;
+                return false;
+            }
+
             DataManagerInternal.FileDatabase database = _fileDirectory.GetDatabase(TargetDataPath);
             if (!database.TryGetFileEntry(fileIdentifier, out DataManagerInternal.File file))
             {

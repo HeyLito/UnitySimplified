@@ -12,11 +12,10 @@ namespace UnitySimplified.Serialization.Formatters
         public string FileExtension => ".JSON";
 
 
-
         public void SerializeToFile<T>(string filePath, T instance)
         {
 #if ENABLE_UNITYSIMPLIFIED_NEWTONSOFT
-            string instanceData = JsonConvert.SerializeObject(instance, Formatting.Indented);
+            string instanceData = JsonConvert.SerializeObject(instance, Formatting.Indented, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Auto, CheckAdditionalContent = true });
 #else
             string instanceData = JsonUtility.ToJson(instance, true);
 #endif
@@ -27,7 +26,7 @@ namespace UnitySimplified.Serialization.Formatters
             string instanceData = File.ReadAllText(filePath);
 
 #if ENABLE_UNITYSIMPLIFIED_NEWTONSOFT
-            DataManagerUtility.OverwriteInstanceFromOther(JsonConvert.DeserializeObject<T>(instanceData), instance);
+            DataManagerUtility.OverwriteInstanceFromOther(JsonConvert.DeserializeObject<T>(instanceData, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Auto, CheckAdditionalContent = true }), instance);
 #else
             JsonUtility.FromJsonOverwrite(instanceData, instance);
 #endif
