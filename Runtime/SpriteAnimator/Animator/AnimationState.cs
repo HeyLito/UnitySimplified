@@ -10,51 +10,38 @@ namespace UnitySimplified.SpriteAnimator
         public enum TransitionPort
         {
             None = 0,
-            CanConnectFrom = 1 << 1,
-            CanConnectTo = 1 << 2,
+            CanConnectFrom  = 1 << 1,
+            CanConnectTo    = 1 << 2,
         }
 
         private readonly OrderedSet<AnimationTransition> _transitions = new();
 
-        internal virtual bool IsGlobal => false;
-        public virtual int Priority { get; private set; } = 0;
-        public virtual string Identifier { get; private set; } = "";
-        public virtual InterruptionSource InterruptionSource { get; private set; }
-        public virtual TransitionPort TransitionPorts => TransitionPort.CanConnectFrom | TransitionPort.CanConnectTo;
-
-        public BaseSpriteAnimator Animator { get; private set; }
-        public SpriteAnimation Animation { get; private set; }
-        public ICollection<AnimationTransition> Transitions => _transitions;
-
-
-        internal static AnimationState CreateAnimationState(Type type, string identifier, BaseSpriteAnimator animator, SpriteAnimation animation, InterruptionSource interruptionSource)
+        internal static AnimationState CreateAnimationState(Type type, string identifier, AbstractSpriteAnimator animator, SpriteAnimation animation, InterruptionSource interruptionSource)
         {
             string baseExceptionMessage = "Could not create animation state;";
             if (string.IsNullOrEmpty(identifier))
                 throw new ArgumentException($"{baseExceptionMessage} Method parameter {nameof(identifier)} is empty or null.");
             if (animator == null)
                 throw new ArgumentNullException($"{baseExceptionMessage} Method parameter {nameof(animator)} is null.");
-            if (typeof(AnimationState).IsAssignableFrom(type))
-            {
-                var state = (AnimationState)Activator.CreateInstance(type);
-                if (state == null)
-                {
-                    throw new ArgumentNullException();
-                }
-                else
-                {
-                    state.Identifier = identifier;
-                    state.Animator = animator;
-                    state.Animation = animation;
-                    state.InterruptionSource = interruptionSource;
-                }
-
-                return state;
-            }
-            else throw new InvalidOperationException($"{baseExceptionMessage} Type {type} is not an {typeof(AnimationState)} nor a subclass of it");
+            if (!typeof(AnimationState).IsAssignableFrom(type))
+                throw new InvalidOperationException($"{baseExceptionMessage} Type {type} is not an {typeof(AnimationState)} nor a subclass of it");
+            
+            var state = (AnimationState)Activator.CreateInstance(type) ?? throw new ArgumentNullException();
+            state.Identifier = identifier;
+            state.Animator = animator;
+            state.Animation = animation;
+            state.InterruptionSource = interruptionSource;
+            return state;
         }
 
-
+        internal virtual bool IsGlobal => false;
+        public virtual int Priority => 0;
+        public virtual string Identifier { get; private set; } = "";
+        public virtual InterruptionSource InterruptionSource { get; private set; }
+        public virtual TransitionPort TransitionPorts => TransitionPort.CanConnectFrom | TransitionPort.CanConnectTo;
+        public AbstractSpriteAnimator Animator { get; private set; }
+        public SpriteAnimation Animation { get; private set; }
+        public ICollection<AnimationTransition> Transitions => _transitions;
 
         public bool TryGetNext(float time, out AnimationTransition next) => DoTryGetNext(time, out next);
         public bool AddTransition(AnimationState to, out AnimationTransition transition) => DoAddTransition(to, out transition);
@@ -138,7 +125,7 @@ namespace UnitySimplified.SpriteAnimator
 
                 _transitions.Add(transition = new AnimationTransition(this, to));
                 foreach (var condition in transition.Conditions)
-                    Animator.onAnyConditionAdded?.Invoke(condition);
+                    Animator.onAnyAnimationConditionAddedCallback?.Invoke(condition);
                 return true;
             }
             else throw new ArgumentNullException(nameof(to));
@@ -154,7 +141,7 @@ namespace UnitySimplified.SpriteAnimator
                 {
                     _transitions.Remove(transition);
                     foreach (var condition in transition.Conditions)
-                        Animator.onAnyConditionRemoved?.Invoke(condition);
+                        Animator.onAnyAnimationConditionRemovedCallback?.Invoke(condition);
                     return true;
                 }
                 return false;

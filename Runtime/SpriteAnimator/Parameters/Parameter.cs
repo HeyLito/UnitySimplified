@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnitySimplified.VariableReferences;
 
 namespace UnitySimplified.SpriteAnimator.Parameters
@@ -8,16 +9,23 @@ namespace UnitySimplified.SpriteAnimator.Parameters
     public abstract class Parameter : AnimationCondition
     {
         [SerializeField]
-        private KeywordReference _nameKeyword;
+        [FormerlySerializedAs("_nameKeyword")]
+        private KeywordReference nameKeyword;
         [SerializeField]
-        private ParameterComparer _comparer;
+        [FormerlySerializedAs("_comparer")]
+        private ParameterComparer comparer;
 
-        public override Func<bool> GetResult => () => _comparer.Compare(LhsValue, RhsValue);
+        public override Func<bool> GetResult => () => comparer.Compare(LhsValue, RhsValue);
         public override string GetCurrentAsString => LhsValue.ToString();
-        public override string Name => _nameKeyword;
-        public KeywordReference NameKeyword => _nameKeyword;
-        public ParameterComparer Comparer => _comparer;
+        public override string Name => nameKeyword;
+        public KeywordReference NameKeyword => nameKeyword;
+        public ParameterComparer Comparer => comparer;
 
+        protected Parameter(KeywordReference nameKeyword, ParameterComparer comparer) : base("NULL", null)
+        {
+            this.nameKeyword = nameKeyword;
+            this.comparer = comparer;
+        }
 
         internal abstract Type ValueType { get; }
         internal virtual object LhsValue { get; set; }
@@ -25,14 +33,7 @@ namespace UnitySimplified.SpriteAnimator.Parameters
         internal virtual object LhsDefaultValue { get; set; }
         internal virtual object RhsDefaultValue { get; set; }
 
-        protected Parameter(KeywordReference nameKeyword, ParameterComparer comparer) : base("NULL", null)
-        {
-            _nameKeyword = nameKeyword;
-            _comparer = comparer;
-        }
-
         public virtual Parameter Clone() => MemberwiseClone() as Parameter;
-
         public abstract ParameterReference GetReference();
     }
     [Serializable]

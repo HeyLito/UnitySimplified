@@ -7,11 +7,10 @@ namespace UnitySimplified.SpriteAnimator
 
         public override void OnSequenceEntered(AnimationState current)
         {
-            if (current == this)
-            {
-                Animator.Stop();
-                Animator.Play();
-            }
+            if (current != this)
+                return;
+            Animator.Stop();
+            Animator.Play();
         }
     }
 }

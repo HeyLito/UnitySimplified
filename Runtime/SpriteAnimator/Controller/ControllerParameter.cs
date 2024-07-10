@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnitySimplified.VariableReferences;
 using UnitySimplified.SpriteAnimator.Parameters;
 
@@ -9,34 +10,30 @@ namespace UnitySimplified.SpriteAnimator.Controller
     public class ControllerParameter : IControllerIdentifiable
     {
         [SerializeField, HideInInspector]
-        private string _identifier;
+        [FormerlySerializedAs("_identifier")]
+        private string identifier;
         [SerializeField]
-        private KeywordReference _nameKeyword;
+        [FormerlySerializedAs("_nameKeyword")]
+        private KeywordReference nameKeyword;
         [SerializeField, SerializeReference]
-        private ParameterReference _parameterReference;
-
-        public string Name => _nameKeyword;
-        public KeywordReference NameKeyword => _nameKeyword;
-
-        public Type ParameterType => _parameterReference.Type;
-        public Type ParameterValueType => _parameterReference.ValueType;
-        public object ParameterValue => _parameterReference.Value;
-
+        [FormerlySerializedAs("_parameterReference")]
+        private ParameterReference parameterReference;
 
         internal ControllerParameter(SpriteAnimatorController controller, Type parameterType)
         {
-            var parameter = (Parameter)Activator.CreateInstance(parameterType, new KeywordReference("NULL"));
-            if (parameter == null)
-                throw new NullReferenceException();
-            
-            _identifier = IControllerIdentifiable.GenerateLocalUniqueIdentifier(controller.ExistingIdentifiers());
-            _nameKeyword = new KeywordReference($"New {parameterType.Name}");
-            _parameterReference = parameter.GetReference();
-            _parameterReference.Value = parameter.LhsDefaultValue;
+            var parameter = (Parameter)Activator.CreateInstance(parameterType, new KeywordReference("NULL")) ?? throw new NullReferenceException();
+            identifier = IControllerIdentifiable.GenerateLocalUniqueIdentifier(controller.ExistingIdentifiers());
+            nameKeyword = new KeywordReference($"New {parameterType.Name}");
+            parameterReference = parameter.GetReference();
+            parameterReference.Value = parameter.LhsDefaultValue;
         }
 
+        public string Name => nameKeyword;
+        public KeywordReference NameKeyword => nameKeyword;
+        public Type ParameterType => parameterReference.Type;
+        public Type ParameterValueType => parameterReference.ValueType;
+        public object ParameterValue => parameterReference.Value;
 
-
-        public string GetIdentifier() => _identifier;
+        public string GetIdentifier() => identifier;
     }
 }

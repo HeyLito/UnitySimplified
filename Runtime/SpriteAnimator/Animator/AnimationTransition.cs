@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 
 namespace UnitySimplified.SpriteAnimator
@@ -8,14 +9,6 @@ namespace UnitySimplified.SpriteAnimator
         public enum FixedEntry { None, Percent, Seconds }
 
         private readonly HashSet<AnimationCondition> _conditions = new();
-
-        public BaseSpriteAnimator Animator { get; }
-        public AnimationState InState { get; }
-        public AnimationState OutState { get; }
-        public FixedEntry FixedEntryType { get; set; } = default;
-        public float FixedEntryDuration { get; set; } = 0;
-        public int TransitionOffset { get; set; } = 0;
-        public IReadOnlyCollection<AnimationCondition> Conditions => _conditions;
 
         public AnimationTransition(AnimationState inState, AnimationState outState)
         {
@@ -36,6 +29,14 @@ namespace UnitySimplified.SpriteAnimator
             OutState = outState;
         }
 
+        public AbstractSpriteAnimator Animator { get; }
+        public AnimationState InState { get; }
+        public AnimationState OutState { get; }
+        public FixedEntry FixedEntryType { get; set; } = default;
+        public float FixedEntryDuration { get; set; } = 0;
+        public int FrameOffset { get; set; } = 0;
+        public IReadOnlyCollection<AnimationCondition> Conditions => _conditions;
+
         public bool AddCondition(AnimationCondition condition) => DoAddCondition(condition);
         public bool RemoveCondition(AnimationCondition condition) => DoRemoveCondition(condition);
         public bool TryTransition(float elapsedTime) => DoTryTransition(elapsedTime);
@@ -48,10 +49,8 @@ namespace UnitySimplified.SpriteAnimator
 
             if (_conditions.Count == 0)
                 return true;
-
-            foreach (var condition in _conditions)
-                if (condition.GetResult == null || !condition.GetResult.Invoke())
-                    return false;
+            if (_conditions.Any(condition => condition.GetResult == null || !condition.GetResult.Invoke()))
+                return false;
 
             foreach (var condition in _conditions)
                 condition.OnSuccessfulResult(this);
@@ -87,7 +86,7 @@ namespace UnitySimplified.SpriteAnimator
             if (!_conditions.Add(condition))
                 return false;
 
-            InState.Animator.onAnyConditionAdded?.Invoke(condition);
+            InState.Animator.onAnyAnimationConditionAddedCallback?.Invoke(condition);
             return true;
         }
         private bool DoRemoveCondition(AnimationCondition condition)
@@ -95,7 +94,7 @@ namespace UnitySimplified.SpriteAnimator
             if (!_conditions.Remove(condition))
                 return false;
 
-            InState.Animator.onAnyConditionRemoved?.Invoke(condition);
+            InState.Animator.onAnyAnimationConditionRemovedCallback?.Invoke(condition);
             return true;
         }
     }

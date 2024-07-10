@@ -1,5 +1,3 @@
-#if UNITY_EDITOR
-
 using System;
 using System.Reflection;
 using System.Collections;
@@ -15,19 +13,17 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
     public class ControllerTransitionDrawer : PropertyDrawer
     {
         private readonly PropertyDrawableReorderableList _drawableLists = new();
-        private FieldInfo _scheduleRemoveInfo = null;
-        private PropertyInfo _isOverMaxMultiEditLimitInfo = null;
-        private MethodInfo _invalidateCacheRecursiveInfo = null;
+        private FieldInfo _scheduleRemoveInfo;
+        private PropertyInfo _isOverMaxMultiEditLimitInfo;
+        private MethodInfo _invalidateCacheRecursiveInfo;
 
 #if UNITY_2022_1_OR_NEWER
         public FieldInfo ScheduleRemoveInfo => _scheduleRemoveInfo ??= typeof(ReorderableList).GetField("m_scheduleRemove", BindingFlags.Instance | BindingFlags.NonPublic);
 #else
-            public FieldInfo ScheduleRemoveInfo => _scheduleRemoveInfo ??= typeof(ReorderableList).GetField("scheduleRemove", BindingFlags.Instance | BindingFlags.NonPublic);
+        public FieldInfo ScheduleRemoveInfo => _scheduleRemoveInfo ??= typeof(ReorderableList).GetField("scheduleRemove", BindingFlags.Instance | BindingFlags.NonPublic);
 #endif
         public PropertyInfo IsOverMaxMultiEditLimitInfo => _isOverMaxMultiEditLimitInfo ??= typeof(ReorderableList).GetProperty("isOverMaxMultiEditLimit", BindingFlags.Instance | BindingFlags.NonPublic);
         public MethodInfo InvalidateCacheRecursiveInfo => _invalidateCacheRecursiveInfo ??= typeof(ReorderableList).GetMethod("InvalidateCacheRecursive", BindingFlags.Instance | BindingFlags.NonPublic);
-
-
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
@@ -37,17 +33,17 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
             height += EditorGUIUtility.singleLineHeight;
             if (property.isExpanded)
             {
-                SerializedProperty fixedEntryTypeProp = property.FindPropertyRelative("_fixedEntryType");
-                SerializedProperty fixedEntryDurationProp = property.FindPropertyRelative("_fixedEntryDuration");
-                SerializedProperty transitionOffsetProp = property.FindPropertyRelative("_transitionOffset");
-                SerializedProperty controllerConditionsProp = property.FindPropertyRelative("_conditions");
+                SerializedProperty fixedEntryTypeProp = property.FindPropertyRelative("fixedEntryType");
+                SerializedProperty fixedEntryDurationProp = property.FindPropertyRelative("fixedEntryDuration");
+                SerializedProperty frameOffsetProp = property.FindPropertyRelative("frameOffset");
+                SerializedProperty controllerConditionsProp = property.FindPropertyRelative("conditions");
 
                 height += 2;
                 height += EditorGUI.GetPropertyHeight(fixedEntryTypeProp);
                 height += 2;
                 height += EditorGUI.GetPropertyHeight(fixedEntryDurationProp);
                 height += 2;
-                height += EditorGUI.GetPropertyHeight(transitionOffsetProp);
+                height += EditorGUI.GetPropertyHeight(frameOffsetProp);
                 height += 2;
                 height += _drawableLists.GetList(controllerConditionsProp, () => InitializeReorderableList(controllerConditionsProp)).GetHeight();
             }
@@ -60,8 +56,8 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
 
             if (controller != null)
             {
-                SerializedProperty inIdentifierProp = property.FindPropertyRelative("_inIdentifier");
-                SerializedProperty outIdentifierProp = property.FindPropertyRelative("_outIdentifier");
+                SerializedProperty inIdentifierProp = property.FindPropertyRelative("inIdentifier");
+                SerializedProperty outIdentifierProp = property.FindPropertyRelative("outIdentifier");
 
                 controller.TryGetStateFromIdentifier(inIdentifierProp.stringValue, out var inControllerState);
                 controller.TryGetStateFromIdentifier(outIdentifierProp.stringValue, out var outControllerState);
@@ -77,10 +73,10 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
                     transitionHeaderRect.x += 10;
                     if (property.isExpanded = EditorGUI.Foldout(transitionHeaderRect, property.isExpanded, $"{inControllerState.Name} -> {outControllerState.Name}", true, EditorStyles.boldLabel))
                     {
-                        SerializedProperty fixedEntryTypeProp = property.FindPropertyRelative("_fixedEntryType");
-                        SerializedProperty fixedEntryDurationProp = property.FindPropertyRelative("_fixedEntryDuration");
-                        SerializedProperty transitionOffsetProp = property.FindPropertyRelative("_transitionOffset");
-                        SerializedProperty controllerConditionsProp = property.FindPropertyRelative("_conditions");
+                        SerializedProperty fixedEntryTypeProp = property.FindPropertyRelative("fixedEntryType");
+                        SerializedProperty fixedEntryDurationProp = property.FindPropertyRelative("fixedEntryDuration");
+                        SerializedProperty frameOffsetProp = property.FindPropertyRelative("frameOffset");
+                        SerializedProperty controllerConditionsProp = property.FindPropertyRelative("conditions");
 
                         previousRect.y += 2;
                         Rect fixedEntryTypeRect = previousRect = new Rect(previousRect) { y = previousRect.y + previousRect.height, height = EditorGUI.GetPropertyHeight(fixedEntryTypeProp) };
@@ -93,8 +89,8 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
                         EditorGUI.EndDisabledGroup();
 
                         previousRect.y += 2;
-                        Rect transitionOffsetRect = previousRect = new Rect(previousRect) { y = previousRect.y + previousRect.height, height = EditorGUI.GetPropertyHeight(transitionOffsetProp) };
-                        EditorGUI.PropertyField(transitionOffsetRect, transitionOffsetProp);
+                        Rect transitionOffsetRect = previousRect = new Rect(previousRect) { y = previousRect.y + previousRect.height, height = EditorGUI.GetPropertyHeight(frameOffsetProp) };
+                        EditorGUI.PropertyField(transitionOffsetRect, frameOffsetProp);
 
                         previousRect.y += 2;
                         ReorderableList controllerConditionsList = _drawableLists.GetList(controllerConditionsProp, () => InitializeReorderableList(controllerConditionsProp));
@@ -138,7 +134,7 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
 
         private void OnListAddDropdown(ReorderableList list, Rect buttonRect)
         {
-            SerializedProperty controllerParametersProp = list.serializedProperty.serializedObject.FindProperty("_parameters").FindPropertyRelative("_items");
+            SerializedProperty controllerParametersProp = list.serializedProperty.serializedObject.FindProperty("parameters").FindPropertyRelative("items");
 
             GenericMenu genericMenu = new GenericMenu();
             for (int i = 0; i < controllerParametersProp.arraySize; i++)
@@ -153,8 +149,7 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
                     int nextIndex = list.serializedProperty.arraySize;
                     if (list.serializedProperty.ExposePropertyInfo(bindingFlags, out FieldInfo listInfo, out object previousObj, out _, true))
                     {
-                        var exposedList = listInfo.GetValue(previousObj) as IList;
-                        if (exposedList != null)
+                        if (listInfo.GetValue(previousObj) is IList exposedList)
                         {
                             var controller = list.serializedProperty.serializedObject.targetObject as SpriteAnimatorController;
                             Undo.RecordObject(controller, "Add Controller Condition");
@@ -212,7 +207,7 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
                 }
                 finally
                 {
-                    ((IDisposable)disabledScopeForAdd).Dispose();
+                    disabledScopeForAdd.Dispose();
                 }
             }
 
@@ -247,5 +242,3 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
         }
     }
 }
-
-#endif

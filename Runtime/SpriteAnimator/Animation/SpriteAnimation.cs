@@ -1,53 +1,63 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace UnitySimplified.SpriteAnimator
 {
     [Serializable]
-    public class SpriteAnimation
+    public sealed partial class SpriteAnimation
+    {
+        [SerializeField]
+        [FormerlySerializedAs("_fps")]
+        private int fps;
+        [SerializeField]
+        [FormerlySerializedAs("_loop")]
+        private bool loop = true;
+        [SerializeField]
+        [FormerlySerializedAs("_frames")]
+        private Sprite[] frames = Array.Empty<Sprite>();
+        [SerializeField]
+        [FormerlySerializedAs("_triggers")]
+        private EventTrigger[] triggers = Array.Empty<EventTrigger>();
+
+        public int Fps => fps;
+        public bool Loop => loop;
+        public Sprite[] Frames => frames;
+        public EventTrigger[] Triggers => triggers;
+    }
+
+    public partial class SpriteAnimation
     {
         [Serializable]
         public class EventTrigger
         {
             [SerializeField]
-            private int _frame;
+            [FormerlySerializedAs("_frame")]
+            private int frame;
             [SerializeField]
-            private string _identifier;
-
-            public int Frame => _frame;
-            public string Identifier => _identifier;
+            [FormerlySerializedAs("_identifier")]
+            private string identifier;
 
             public EventTrigger() { }
             public EventTrigger(int frame, string identifier) : this()
             {
-                _frame = frame;
-                _identifier = identifier;
+                this.frame = frame;
+                this.identifier = identifier;
             }
+
+            public int Frame => frame;
+            public string Identifier => identifier;
         }
         public class EventTriggerReceiver
         {
-            public string Identifier { get; }
-            public Action Callback { get; }
-
             public EventTriggerReceiver(string identifier, Action callback)
             {
                 Identifier = identifier;
                 Callback = callback;
             }
+
+            public string Identifier { get; }
+            public Action Callback { get; }
         }
-
-        [SerializeField]
-        private int _fps = 0;
-        [SerializeField]
-        private bool _loop = true;
-        [SerializeField]
-        private Sprite[] _frames = Array.Empty<Sprite>();
-        [SerializeField]
-        private EventTrigger[] _triggers = Array.Empty<EventTrigger>();
-
-        public int Fps => _fps;
-        public bool Loop => _loop;
-        public Sprite[] Frames => _frames;
-        public EventTrigger[] Triggers => _triggers;
     }
 }

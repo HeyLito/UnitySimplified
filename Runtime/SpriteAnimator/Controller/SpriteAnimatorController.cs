@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnitySimplified.Collections;
 
 namespace UnitySimplified.SpriteAnimator.Controller
@@ -16,14 +17,17 @@ namespace UnitySimplified.SpriteAnimator.Controller
         public class ControllerTransitionList : ListWrapper<ControllerTransition> { }
 
         [SerializeField]
-        private ControllerParameterList _parameters = new();
+        [FormerlySerializedAs("_parameters")]
+        private ControllerParameterList parameters = new();
         [SerializeField]
-        private ControllerStateList _states = new();
+        [FormerlySerializedAs("_states")]
+        private ControllerStateList states = new();
         [SerializeField]
-        private ControllerTransitionList _transitions = new();
+        [FormerlySerializedAs("_transitions")]
+        private ControllerTransitionList transitions = new();
 
         [NonSerialized]
-        private readonly HashSet<BaseSpriteAnimator> _activeAnimators = new();
+        private readonly HashSet<AbstractSpriteAnimator> _activeAnimators = new();
         [NonSerialized]
         private readonly HashSet<string> _existingIdentifiers = new();
         [NonSerialized]
@@ -34,17 +38,17 @@ namespace UnitySimplified.SpriteAnimator.Controller
         private readonly Dictionary<string, GlobalAnimationState> _globalAnimationStatesByNames = new();
 
         public IReadOnlyCollection<ControllerState> States => _statesByNames.Values;
-        internal ControllerParameterList InternalParameters => _parameters;
-        internal ControllerStateList InternalStates => _states;
-        internal ControllerTransitionList InternalTransitions => _transitions;
+        internal ControllerParameterList InternalParameters => parameters;
+        internal ControllerStateList InternalStates => states;
+        internal ControllerTransitionList InternalTransitions => transitions;
 
-        public void AttachToAnimator(BaseSpriteAnimator animator)
+        public void AttachToAnimator(AbstractSpriteAnimator animator)
         {
             if (Application.IsPlaying(animator))
             {
                 if (_activeAnimators.Add(animator))
                 {
-                    foreach (var transition in _transitions)
+                    foreach (var transition in transitions)
                         if (TryGetStateFromIdentifier(transition.GetInIdentifier(), out var inControllerState) && TryGetStateFromIdentifier(transition.GetOutIdentifier(), out var outControllerState))
                             if (inControllerState.TryGetAsAnimationState(animator, true, out var inAnimationState) && outControllerState.TryGetAsAnimationState(animator, true, out var outAnimationState))
                                 transition.AddToAnimationState(this, inAnimationState, outAnimationState, out _);
@@ -53,13 +57,13 @@ namespace UnitySimplified.SpriteAnimator.Controller
             }
             else throw new InvalidOperationException($"Should only be attaching {typeof(SpriteAnimatorController)} within runtime.");
         }
-        public void DetachFromAnimator(BaseSpriteAnimator animator)
+        public void DetachFromAnimator(AbstractSpriteAnimator animator)
         {
             if (Application.IsPlaying(animator))
             {
                 if (_activeAnimators.Remove(animator))
                 {
-                    foreach (var transition in _transitions)
+                    foreach (var transition in transitions)
                         if (TryGetStateFromIdentifier(transition.GetInIdentifier(), out var inControllerState) && TryGetStateFromIdentifier(transition.GetOutIdentifier(), out var outControllerState))
                             if (inControllerState.TryGetAsAnimationState(animator, true, out var inAnimatorState) && outControllerState.TryGetAsAnimationState(animator, true, out var outAnimatorState))
                                 transition.RemoveFromAnimationState(this, inAnimatorState, outAnimatorState);
@@ -77,7 +81,7 @@ namespace UnitySimplified.SpriteAnimator.Controller
 
         private bool DoGetControllerStateFromName(string stateName, out ControllerState state)
         {
-            if (_states.Count != _statesByNames.Count)
+            if (states.Count != _statesByNames.Count)
                 ((ISerializationCallbackReceiver)this).OnAfterDeserialize();
             return _statesByNames.TryGetValue(stateName, out state);
         }
@@ -100,22 +104,22 @@ namespace UnitySimplified.SpriteAnimator.Controller
 
         void ISerializationCallbackReceiver.OnBeforeSerialize()
         {
-            for (int i = _transitions.Count - 1; i >= 0; i--)
+            for (int i = transitions.Count - 1; i >= 0; i--)
             {
-                string transitionAsMessage = $"Indexed <b>ControllerTransition</b>(<color=yellow>{_transitions[i].GetIdentifier()}</color>) at [{i}]";
-                if (!_identifiablesByIdentifiers.TryGetValue(_transitions[i].GetIdentifier(), out _))
+                string transitionAsMessage = $"Indexed <b>ControllerTransition</b>(<color=yellow>{transitions[i].GetIdentifier()}</color>) at [{i}]";
+                if (!_identifiablesByIdentifiers.TryGetValue(transitions[i].GetIdentifier(), out _))
                 {
                     Debug.LogError($"{transitionAsMessage} is not contained by the controller.");
                     continue;
                 }
-                if (!TryGetStateFromIdentifier(_transitions[i].GetInIdentifier(), out _))
+                if (!TryGetStateFromIdentifier(transitions[i].GetInIdentifier(), out _))
                 {
-                    Debug.LogError($"{transitionAsMessage} can not locate <b>ControllerState</b>(<color=yellow>{_transitions[i].GetInIdentifier()}</color>).");
+                    Debug.LogError($"{transitionAsMessage} can not locate <b>ControllerState</b>(<color=yellow>{transitions[i].GetInIdentifier()}</color>).");
                     continue;
                 }
-                if (!TryGetStateFromIdentifier(_transitions[i].GetOutIdentifier(), out _))
+                if (!TryGetStateFromIdentifier(transitions[i].GetOutIdentifier(), out _))
                 {
-                    Debug.LogError($"{transitionAsMessage} can not locate <b>ControllerState</b>(<color=yellow>{_transitions[i].GetOutIdentifier()}</color>).");
+                    Debug.LogError($"{transitionAsMessage} can not locate <b>ControllerState</b>(<color=yellow>{transitions[i].GetOutIdentifier()}</color>).");
                     continue;
                 }
             }
@@ -131,33 +135,33 @@ namespace UnitySimplified.SpriteAnimator.Controller
             foreach (var globalState in GlobalAnimationState.States)
                 _globalAnimationStatesByNames.Add(globalState.Identifier, globalState);
 
-            for (int i = 0; i < _parameters.Count; i++)
-                if (_parameters[i] != null && !string.IsNullOrEmpty(_parameters[i].GetIdentifier()))
+            for (int i = 0; i < parameters.Count; i++)
+                if (parameters[i] != null && !string.IsNullOrEmpty(parameters[i].GetIdentifier()))
                 {
-                    _existingIdentifiers.Add(_parameters[i].GetIdentifier());
-                    _identifiablesByIdentifiers[_parameters[i].GetIdentifier()] = _parameters[i];
+                    _existingIdentifiers.Add(parameters[i].GetIdentifier());
+                    _identifiablesByIdentifiers[parameters[i].GetIdentifier()] = parameters[i];
                 }
-                else _parameters.RemoveAt(i--);
+                else parameters.RemoveAt(i--);
 
-            for (int i = 0; i < _states.Count; i++)
-                if (_states[i] != null && !string.IsNullOrEmpty(_states[i].GetIdentifier()))
+            for (int i = 0; i < states.Count; i++)
+                if (states[i] != null && !string.IsNullOrEmpty(states[i].GetIdentifier()))
                 {
-                    _existingIdentifiers.Add(_states[i].GetIdentifier());
-                    _identifiablesByIdentifiers[_states[i].GetIdentifier()] = _states[i];
-                    _statesByNames[_states[i].Name] = _states[i];
+                    _existingIdentifiers.Add(states[i].GetIdentifier());
+                    _identifiablesByIdentifiers[states[i].GetIdentifier()] = states[i];
+                    _statesByNames[states[i].Name] = states[i];
                 }
-                else _states.RemoveAt(i--);
+                else states.RemoveAt(i--);
 
-            for (int i = 0; i < _transitions.Count; i++)
-                if (_transitions[i] != null && !string.IsNullOrEmpty(_transitions[i].GetIdentifier()))
+            for (int i = 0; i < transitions.Count; i++)
+                if (transitions[i] != null && !string.IsNullOrEmpty(transitions[i].GetIdentifier()))
                 {
-                    _existingIdentifiers.Add(_transitions[i].GetIdentifier());
-                    _identifiablesByIdentifiers[_transitions[i].GetIdentifier()] = _transitions[i];
+                    _existingIdentifiers.Add(transitions[i].GetIdentifier());
+                    _identifiablesByIdentifiers[transitions[i].GetIdentifier()] = transitions[i];
                 }
                 else
                 {
                     //controllerTransitions.RemoveValueAt(i--);
-                    Debug.Log($"{_transitions[i]}");
+                    Debug.Log($"{transitions[i]}");
                 }
 
 
@@ -165,7 +169,7 @@ namespace UnitySimplified.SpriteAnimator.Controller
                 if (!_statesByNames.ContainsKey(globalState.Identifier))
                 {
                     var controllerState = new ControllerState(this, globalState.Identifier, globalState.TransitionPorts);
-                    _states.Add(controllerState);
+                    states.Add(controllerState);
                     _existingIdentifiers.Add(globalState.Identifier);
                     _statesByNames[controllerState.Name] = controllerState;
                     _identifiablesByIdentifiers[controllerState.GetIdentifier()] = controllerState;

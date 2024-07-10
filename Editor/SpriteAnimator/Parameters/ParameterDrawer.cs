@@ -1,5 +1,3 @@
-#if UNITY_EDITOR
-
 using UnityEngine;
 using UnityEditor;
 using UnitySimplified.SpriteAnimator.Parameters;
@@ -58,5 +56,3 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Parameters
         }
     }
 }
-
-#endif

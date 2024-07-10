@@ -1,5 +1,3 @@
-#if UNITY_EDITOR
-
 using System;
 using System.Reflection;
 using System.Collections.Generic;
@@ -14,7 +12,7 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
     [CustomPropertyDrawer(typeof(ControllerParameter))]
     internal class ControllerParameterDrawer : PropertyDrawer
     {
-        private static readonly Dictionary<Type, (Attribute drawerAttribute, Type drawerType, PropertyDrawer drawerInstance)> _customDrawersByParameterTypes = new();
+        private static readonly Dictionary<Type, (Attribute drawerAttribute, Type drawerType, PropertyDrawer drawerInstance)> CustomDrawersByParameterTypes = new();
         private static MethodInfo _getPropertyHeightSafeInfo;
         private static MethodInfo _onGUISafeInfo;
 
@@ -43,7 +41,7 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
         [InitializeOnLoadMethod]
         private static void OnInitialize()
         {
-            _customDrawersByParameterTypes.Clear();
+            CustomDrawersByParameterTypes.Clear();
             var assemblies = ApplicationUtility.GetAssemblies();
             foreach (var assembly in assemblies)
                 foreach (var type in ApplicationUtility.GetTypesFromAssembly(assembly))
@@ -52,59 +50,54 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
                         var attributes = type.GetCustomAttributes(true);
                         foreach (var attribute in attributes)
                             if (attribute is CustomControllerParameterDrawer customControllerParameterDrawer)
-                                _customDrawersByParameterTypes[customControllerParameterDrawer.ParameterType] = (customControllerParameterDrawer, type, null);
+                                CustomDrawersByParameterTypes[customControllerParameterDrawer.ParameterType] = (customControllerParameterDrawer, type, null);
 
                     }
         }
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            SerializedProperty identifierProp = property?.FindPropertyRelative("_identifier");
-            SerializedProperty nameKeywordProp = property?.FindPropertyRelative("_nameKeyword");
-            SerializedProperty parameterReferenceProp = property?.FindPropertyRelative("_parameterReference");
-            SerializedProperty parameterValueProp = parameterReferenceProp?.FindPropertyRelative("_value");
+            SerializedProperty identifierProp = property?.FindPropertyRelative("identifier");
+            SerializedProperty nameKeywordProp = property?.FindPropertyRelative("nameKeyword");
+            SerializedProperty parameterReferenceProp = property?.FindPropertyRelative("parameterReference");
+            SerializedProperty parameterValueProp = parameterReferenceProp?.FindPropertyRelative("value");
 
-            if (identifierProp != null && nameKeywordProp != null && parameterReferenceProp != null && parameterValueProp != null && !string.IsNullOrEmpty(identifierProp.stringValue))
-            {
-                if (parameterReferenceProp.managedReferenceValue is ParameterReference parameterReference && parameterReference != null)
-                {
-                    if (_customDrawersByParameterTypes.TryGetValue(parameterReference.Type, out var tuple))
-                    {
-                        tuple.drawerInstance ??= Activator.CreateInstance(tuple.drawerType) as PropertyDrawer;
-                        return (float)GetPropertyHeightSafeInfo.Invoke(tuple.drawerInstance, new object[] { property, label });
-                    }
-                    else return 2 + EditorGUI.GetPropertyHeight(nameKeywordProp) + EditorGUI.GetPropertyHeight(parameterValueProp);
-                }
-                else return EditorGUIUtility.singleLineHeight;
-            }
-            else return EditorGUIUtility.singleLineHeight;
+            if (identifierProp == null || nameKeywordProp == null || parameterReferenceProp == null || parameterValueProp == null || string.IsNullOrEmpty(identifierProp.stringValue))
+                return EditorGUIUtility.singleLineHeight;
+            if (parameterReferenceProp.managedReferenceValue is not ParameterReference parameterReference)
+                return EditorGUIUtility.singleLineHeight;
+            if (!CustomDrawersByParameterTypes.TryGetValue(parameterReference.Type, out var tuple))
+                return 2 + EditorGUI.GetPropertyHeight(nameKeywordProp) + EditorGUI.GetPropertyHeight(parameterValueProp);
+
+            tuple.drawerInstance ??= Activator.CreateInstance(tuple.drawerType) as PropertyDrawer;
+            return (float)GetPropertyHeightSafeInfo.Invoke(tuple.drawerInstance, new object[] { property, label });
         }
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            SerializedProperty identifierProp = property?.FindPropertyRelative("_identifier");
-            SerializedProperty nameKeywordProp = property?.FindPropertyRelative("_nameKeyword");
-            SerializedProperty parameterReferenceProp = property?.FindPropertyRelative("_parameterReference");
-            SerializedProperty parameterValueProp = parameterReferenceProp?.FindPropertyRelative("_value");
+            SerializedProperty identifierProp = property?.FindPropertyRelative("identifier");
+            SerializedProperty nameKeywordProp = property?.FindPropertyRelative("nameKeyword");
+            SerializedProperty parameterReferenceProp = property?.FindPropertyRelative("parameterReference");
+            SerializedProperty parameterValueProp = parameterReferenceProp?.FindPropertyRelative("value");
 
             string exitReason = null;
             if (property == null)
                 exitReason = "Property is NULL!";
             else if (identifierProp == null)
-                exitReason = "SerializedProperty \"_identifier\" is NULL!";
+                exitReason = "SerializedProperty \"identifier\" is NULL!";
             else if (nameKeywordProp == null)
-                exitReason = "SerializedProperty \"_nameKeyword\" is NULL!";
+                exitReason = "SerializedProperty \"nameKeyword\" is NULL!";
             else if (parameterReferenceProp == null)
-                exitReason = "SerializedProperty \"_parameterReference\" is NULL!";
+                exitReason = "SerializedProperty \"parameterReference\" is NULL!";
             else if (parameterValueProp == null)
-                exitReason = "SerializedProperty \"_parameterReference.value\" is NULL!";
+                exitReason = "SerializedProperty \"parameterReference.value\" is NULL!";
             else if (string.IsNullOrEmpty(identifierProp.stringValue))
-                exitReason = "SerializedProperty \"_identifier\" is empty!";
-            else if (parameterReferenceProp.managedReferenceValue is not ParameterReference parameterReference || parameterReference == null)
-                exitReason = $"The type in \"_parameterReference\" is not \"{nameof(ParameterReference)}\"!";
+                exitReason = "SerializedProperty \"identifier\" is empty!";
+            else if (parameterReferenceProp.managedReferenceValue is not ParameterReference parameterReference)
+                exitReason = $"The type in \"parameterReference\" is not \"{nameof(ParameterReference)}\"!";
             else
             {
-                if (_customDrawersByParameterTypes.TryGetValue(parameterReference.Type, out var tuple))
+                if (CustomDrawersByParameterTypes.TryGetValue(parameterReference.Type, out var tuple))
                 {
                     tuple.drawerInstance ??= Activator.CreateInstance(tuple.drawerType) as PropertyDrawer;
                     OnGUISafeInfo.Invoke(tuple.drawerInstance, new object[] { position, property, label });
@@ -137,5 +130,3 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
         }
     }
 }
-
-#endif

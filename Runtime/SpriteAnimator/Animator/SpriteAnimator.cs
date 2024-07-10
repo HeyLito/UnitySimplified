@@ -1,24 +1,28 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnitySimplified.SpriteAnimator.Controller;
 
 namespace UnitySimplified.SpriteAnimator
 {
-    public class SpriteAnimator : BaseSpriteAnimator
+    public class SpriteAnimator : AbstractSpriteAnimator
     {
         public enum PlayOn
         {
-            None = 0,
-            Awake = 1,
-            Start = 2,
-            Enable = 3,
+            None    = 0,
+            Awake   = 1,
+            Start   = 2,
+            Enable  = 3,
         }
         [SerializeField]
-        private SpriteRenderer _spriteRenderer = null;
+        [FormerlySerializedAs("_spriteRenderer")]
+        private SpriteRenderer spriteRenderer;
         [SerializeField]
-        private SpriteAnimatorController _controller;
+        [FormerlySerializedAs("_controller")]
+        private SpriteAnimatorController controller;
         [SerializeField]
-        private PlayOn _playOn = PlayOn.None;
+        [FormerlySerializedAs("_playOn")]
+        private PlayOn playOn = PlayOn.None;
 
         [NonSerialized]
         private bool _initializedController;
@@ -26,26 +30,26 @@ namespace UnitySimplified.SpriteAnimator
 
         public override Sprite Sprite
         {
-            get => _spriteRenderer != null ? _spriteRenderer.sprite : null;
+            get => spriteRenderer != null ? spriteRenderer.sprite : null;
             protected set
             {
-                if (_spriteRenderer != null)
-                    _spriteRenderer.sprite = value;
+                if (spriteRenderer != null)
+                    spriteRenderer.sprite = value;
             }
         }
         public SpriteAnimatorController Controller
         {
-            get => _controller;
+            get => controller;
             set
             {
-                if (_controller == value)
+                if (controller == value)
                     return;
                 Stop();
-                if (_controller != null)
-                    _controller.DetachFromAnimator(this);
-                _controller = value;
-                if (_controller != null)
-                    _controller.AttachToAnimator(this);
+                if (controller != null)
+                    controller.DetachFromAnimator(this);
+                controller = value;
+                if (controller != null)
+                    controller.AttachToAnimator(this);
                 if (_initializedController == false)
                     _initializedController = true;
             }
@@ -55,39 +59,36 @@ namespace UnitySimplified.SpriteAnimator
 
         private void Awake()
         {
-            if (_playOn == PlayOn.Awake)
+            if (playOn == PlayOn.Awake)
                 DoPlay();
         }
         private void Start()
         {
-            if (_playOn == PlayOn.Start)
+            if (playOn == PlayOn.Start)
                 DoPlay();
         }
         private void OnEnable()
         {
-            if (_playOn == PlayOn.Enable)
+            if (playOn == PlayOn.Enable)
                 DoPlay();
+        }
+        protected override void OnInitialize()
+        {
+            if (controller == null || _initializedController)
+                return;
+            controller.AttachToAnimator(this);
+            _initializedController = true;
         }
         private void DoPlay()
         {
             Play();
 
-            if (AnimationStates.Count == 0)
-            {
-                string message = $"Could not start <b>{this}</b> because it is missing animations!";
-                if (_controller == null)
-                    message += $" Consider adding an animator controller.";
-                Debug.LogWarning(message);
-            }
-        }
-
-        protected override void OnInitialize()
-        {
-            if (_controller != null && !_initializedController)
-            {
-                _controller.AttachToAnimator(this);
-                _initializedController = true;
-            }
+            if (AnimationStates.Count != 0)
+                return;
+            string message = $"Could not start <b>{this}</b> because it is missing animations!";
+            if (controller == null)
+                message += $" Consider adding an animator controller.";
+            Debug.LogWarning(message);
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using static UnitySimplified.SpriteAnimator.AnimationTransition;
 
 namespace UnitySimplified.SpriteAnimator.Controller
@@ -9,22 +10,28 @@ namespace UnitySimplified.SpriteAnimator.Controller
     public class ControllerTransition : IControllerIdentifiable
     {
         [SerializeField, HideInInspector]
-        private string _identifier;
+        [FormerlySerializedAs("_identifier")]
+        private string identifier;
         [SerializeField]
-        private string _inIdentifier;
+        [FormerlySerializedAs("_inIdentifier")]
+        private string inIdentifier;
         [SerializeField]
-        private string _outIdentifier;
+        [FormerlySerializedAs("_outIdentifier")]
+        private string outIdentifier;
         
         [SerializeField]
-        private FixedEntry _fixedEntryType;
+        [FormerlySerializedAs("_fixedEntryType")]
+        private FixedEntry fixedEntryType;
         [SerializeField]
-        private float _fixedEntryDuration;
+        [FormerlySerializedAs("_fixedEntryDuration")]
+        private float fixedEntryDuration;
         [SerializeField]
-        private int _transitionOffset;
+        [FormerlySerializedAs("_transitionOffset")]
+        private int frameOffset;
         
         [SerializeField, SerializeReference]
-        private List<ControllerCondition> _conditions;
-
+        [FormerlySerializedAs("_conditions")]
+        private List<ControllerCondition> conditions;
 
         internal ControllerTransition(SpriteAnimatorController controller, ControllerState inState, ControllerState outState)
         {
@@ -35,26 +42,24 @@ namespace UnitySimplified.SpriteAnimator.Controller
             if (outState == null)
                 throw new ArgumentNullException($"{nameof(outState)}");
 
-            _fixedEntryType = FixedEntry.Percent;
-            _fixedEntryDuration = 1;
-            _transitionOffset = 0;
-            _identifier = IControllerIdentifiable.GenerateLocalUniqueIdentifier(controller.ExistingIdentifiers());
-            _inIdentifier = inState.GetIdentifier();
-            _outIdentifier = outState.GetIdentifier();
-            _conditions = new List<ControllerCondition>();
+            fixedEntryType = FixedEntry.Percent;
+            fixedEntryDuration = 1;
+            frameOffset = 0;
+            identifier = IControllerIdentifiable.GenerateLocalUniqueIdentifier(controller.ExistingIdentifiers());
+            inIdentifier = inState.GetIdentifier();
+            outIdentifier = outState.GetIdentifier();
+            conditions = new List<ControllerCondition>();
         }
 
-
-
-        public string GetIdentifier() => _identifier;
-        public string GetInIdentifier() => _inIdentifier;
-        public string GetOutIdentifier() => _outIdentifier;
+        public string GetIdentifier() => identifier;
+        public string GetInIdentifier() => inIdentifier;
+        public string GetOutIdentifier() => outIdentifier;
         public bool Validate(SpriteAnimatorController controller) => 
-            !string.IsNullOrEmpty(_identifier) &&
-            !string.IsNullOrEmpty(_inIdentifier) &&
-            !string.IsNullOrEmpty(_outIdentifier) &&
-            controller.ContainsState(_inIdentifier) &&
-            controller.ContainsState(_outIdentifier);
+            !string.IsNullOrEmpty(identifier) &&
+            !string.IsNullOrEmpty(inIdentifier) &&
+            !string.IsNullOrEmpty(outIdentifier) &&
+            controller.ContainsState(inIdentifier) &&
+            controller.ContainsState(outIdentifier);
         public void AddToAnimationState(SpriteAnimatorController controller, AnimationState inState, AnimationState outState, out AnimationTransition transition)
         {
             if (controller == null)
@@ -66,10 +71,10 @@ namespace UnitySimplified.SpriteAnimator.Controller
 
             if (inState.AddTransition(outState, out transition))
             {
-                transition.FixedEntryType = _fixedEntryType;
-                transition.FixedEntryDuration = _fixedEntryDuration;
-                transition.TransitionOffset = _transitionOffset;
-                foreach (var condition in _conditions)
+                transition.FixedEntryType = fixedEntryType;
+                transition.FixedEntryDuration = fixedEntryDuration;
+                transition.FrameOffset = frameOffset;
+                foreach (var condition in conditions)
                     if (condition.TryGetCondition(controller, out var animationCondition))
                         transition.AddCondition(animationCondition);
             }

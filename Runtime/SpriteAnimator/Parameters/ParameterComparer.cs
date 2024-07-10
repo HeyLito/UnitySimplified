@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace UnitySimplified.SpriteAnimator.Parameters
 {
@@ -7,7 +8,8 @@ namespace UnitySimplified.SpriteAnimator.Parameters
     public class ParameterComparer
     {
         [SerializeField]
-        private int _selection = 0;
+        [FormerlySerializedAs("_selection")]
+        private int selection;
 
         public virtual string[] Options => new[]
         {
@@ -16,8 +18,8 @@ namespace UnitySimplified.SpriteAnimator.Parameters
             };
         public virtual int Selection
         {
-            get => _selection;
-            set => _selection = value >= 0 && value < Options.Length ? value : -1;
+            get => selection;
+            set => selection = value >= 0 && value < Options.Length ? value : -1;
         }
 
         public virtual bool Compare(object lhs, object rhs)
@@ -33,22 +35,8 @@ namespace UnitySimplified.SpriteAnimator.Parameters
         public ParameterComparer Copy()
         {
             var comparer = new ParameterComparer();
-            comparer._selection = _selection;
+            comparer.selection = selection;
             return comparer;
         }
     }
 }
-//namespace UnitySimplified.SpriteAnimator
-//{
-//    [Serializable]
-//    public class ParameterComparer
-//    {
-//        public virtual bool Compare(object lhs, object rhs) => throw new NotImplementedException();
-
-//        public virtual ParameterComparer Copy()
-//        {
-//            var comparer = new ParameterComparer();
-//            return comparer;
-//        }
-//    }
-//}

@@ -4,10 +4,6 @@ namespace UnitySimplified.SpriteAnimator
 {
     public class AnimationCondition
     {
-        public virtual string Name { get; private set; }
-        public virtual string GetCurrentAsString => "";
-        public virtual Func<bool> GetResult { get; private set; }
-
         public AnimationCondition(string name, Func<bool> resultGetter)
         {
             if (string.IsNullOrEmpty(name))
@@ -17,7 +13,9 @@ namespace UnitySimplified.SpriteAnimator
             GetResult = resultGetter;
         }
 
-
+        public virtual string Name { get; }
+        public virtual string GetCurrentAsString => "";
+        public virtual Func<bool> GetResult { get; }
 
         public virtual void OnSuccessfulResult(AnimationTransition context) { }
     }

@@ -10,12 +10,12 @@ namespace UnitySimplified.SpriteAnimator.Parameters
         [NonSerialized]
         private static readonly HashSet<Parameter<Trigger>> TriggerResults = new();
 
-        public static void ResetTriggerParameter(this BaseSpriteAnimator animator, string name) => DoResetTriggerParameter(animator, name);
-        public static void ResetTriggerParameter(this BaseSpriteAnimator animator, KeywordReference nameReference) => DoResetTriggerParameter(animator, nameReference);
-        public static void SetTriggerParameter(this BaseSpriteAnimator animator, string name) => DoSetTriggerParameter(animator, name);
-        public static void SetTriggerParameter(this BaseSpriteAnimator animator, KeywordReference nameKeyword) => DoSetTriggerParameter(animator, nameKeyword.Value);
+        public static void ResetTriggerParameter(this AbstractSpriteAnimator animator, string name) => DoResetTriggerParameter(animator, name);
+        public static void ResetTriggerParameter(this AbstractSpriteAnimator animator, KeywordReference nameReference) => DoResetTriggerParameter(animator, nameReference);
+        public static void SetTriggerParameter(this AbstractSpriteAnimator animator, string name) => DoSetTriggerParameter(animator, name);
+        public static void SetTriggerParameter(this AbstractSpriteAnimator animator, KeywordReference nameKeyword) => DoSetTriggerParameter(animator, nameKeyword.Value);
 
-        private static void DoResetTriggerParameter(this BaseSpriteAnimator animator, string name)
+        private static void DoResetTriggerParameter(this AbstractSpriteAnimator animator, string name)
         {
             TriggerResults.Clear();
             if (animator.TryGetParameters(name, TriggerResults))
@@ -26,7 +26,7 @@ namespace UnitySimplified.SpriteAnimator.Parameters
             }
             else Debug.LogWarning($"{animator} does not contain a {nameof(TriggerParameter)} named \"{name}\"");
         }
-        private static void DoSetTriggerParameter(this BaseSpriteAnimator animator, string name)
+        private static void DoSetTriggerParameter(this AbstractSpriteAnimator animator, string name)
         {
             TriggerResults.Clear();
             if (animator.TryGetParameters(name, TriggerResults))

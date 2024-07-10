@@ -1,5 +1,3 @@
-#if UNITY_EDITOR
-
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -37,13 +35,13 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            SerializedProperty itemsProp = property.FindPropertyRelative("_items");
+            SerializedProperty itemsProp = property.FindPropertyRelative("items");
             return DrawableLists.GetList(itemsProp, () => InitializeList(itemsProp)).GetHeight();
         }
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            SerializedProperty itemsProp = property.FindPropertyRelative("_items");
+            SerializedProperty itemsProp = property.FindPropertyRelative("items");
             ReorderableList parametersList = DrawableLists.GetList(itemsProp, () => InitializeList(itemsProp));
             Rect parametersRect = new(position) { height = parametersList.GetHeight() };
 
@@ -94,5 +92,3 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
         };
     }
 }
-
-#endif

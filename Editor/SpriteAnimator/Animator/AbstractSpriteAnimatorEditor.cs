@@ -1,6 +1,4 @@
-﻿#if UNITY_EDITOR
-
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using UnitySimplified.SpriteAnimator;
@@ -8,8 +6,8 @@ using AnimationState = UnitySimplified.SpriteAnimator.AnimationState;
 
 namespace UnitySimplifiedEditor.SpriteAnimator
 {
-    [CustomEditor(typeof(BaseSpriteAnimator), true)]
-    public class BaseSpriteAnimatorEditor : Editor
+    [CustomEditor(typeof(AbstractSpriteAnimator), true)]
+    public class AbstractSpriteAnimatorEditor : Editor
     {
         private int? _frameIndex;
         private AnimationState _state;
@@ -27,7 +25,7 @@ namespace UnitySimplifiedEditor.SpriteAnimator
         {
             _labelStyle ??= new GUIStyle(EditorStyles.label) { richText = true };
             _foldoutStyle ??= new GUIStyle(EditorStyles.foldout) { richText = true };
-            var animator = (target as BaseSpriteAnimator);
+            var animator = (target as AbstractSpriteAnimator);
             if (animator == null)
                 return;
 
@@ -99,5 +97,3 @@ namespace UnitySimplifiedEditor.SpriteAnimator
         }
     }
 }
-
-#endif

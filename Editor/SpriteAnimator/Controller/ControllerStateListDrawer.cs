@@ -1,5 +1,3 @@
-#if UNITY_EDITOR
-
 using UnityEngine;
 using UnityEditor;
 using UnityEditorInternal;
@@ -16,13 +14,13 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            SerializedProperty itemsProp = property.FindPropertyRelative("_items");
+            SerializedProperty itemsProp = property.FindPropertyRelative("items");
             return _drawableLists.GetList(itemsProp, () => InitializeControllerStatesList(itemsProp)).GetHeight();
         }
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            SerializedProperty itemsProp = property.FindPropertyRelative("_items");
+            SerializedProperty itemsProp = property.FindPropertyRelative("items");
             ReorderableList itemsList = _drawableLists.GetList(itemsProp, () => InitializeControllerStatesList(itemsProp));
             Rect itemsRect = new(position) { height = itemsList.GetHeight() };
 
@@ -50,7 +48,7 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
                         return false;
                     if (list.index > 0)
                         return !list.serializedProperty.GetArrayElementAtIndex(list.index)
-                            .FindPropertyRelative("_isGlobal").boolValue;
+                            .FindPropertyRelative("isGlobal").boolValue;
                     return false;
                 },
                 onAddCallback = list =>
@@ -85,5 +83,3 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
         }
     }
 }
-
-#endif

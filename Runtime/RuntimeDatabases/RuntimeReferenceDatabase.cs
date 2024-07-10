@@ -11,8 +11,6 @@ namespace UnitySimplified.RuntimeDatabases
         private readonly Dictionary<string, object> _referencesByIdentifiers = new();
         private readonly Dictionary<object, string> _identifiersByReferences = new();
 
-
-
         public bool Contains(string identifier) => TryGet(identifier, out _);
         public bool Contains(object reference) => TryGet(reference, out _);
         public bool TryGet(string identifier, out object reference) => _referencesByIdentifiers.TryGetValue(identifier, out reference);

@@ -1,5 +1,3 @@
-#if UNITY_EDITOR
-
 using UnityEngine;
 using UnityEditor;
 using UnitySimplified.SpriteAnimator.Controller;
@@ -11,10 +9,10 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
     {
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            SerializedProperty nameProp = property.FindPropertyRelative("_name");
-            SerializedProperty motionProp = property.FindPropertyRelative("_motion");
-            SerializedProperty interruptionSourceProp = property.FindPropertyRelative("_interruptionSource");
-            SerializedProperty isReadOnlyProp = property.FindPropertyRelative("_isReadOnly");
+            SerializedProperty nameProp = property.FindPropertyRelative("name");
+            SerializedProperty motionProp = property.FindPropertyRelative("motion");
+            SerializedProperty interruptionSourceProp = property.FindPropertyRelative("interruptionSource");
+            SerializedProperty isReadOnlyProp = property.FindPropertyRelative("isReadOnly");
             if (nameProp != null && motionProp != null && interruptionSourceProp != null && isReadOnlyProp != null)
             {
                 float height = 0;
@@ -34,10 +32,10 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
         }
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            SerializedProperty nameProp = property.FindPropertyRelative("_name");
-            SerializedProperty motionProp = property.FindPropertyRelative("_motion");
-            SerializedProperty interruptionSourceProp = property.FindPropertyRelative("_interruptionSource");
-            SerializedProperty isReadOnlyProp = property.FindPropertyRelative("_isReadOnly");
+            SerializedProperty nameProp = property.FindPropertyRelative("name");
+            SerializedProperty motionProp = property.FindPropertyRelative("motion");
+            SerializedProperty interruptionSourceProp = property.FindPropertyRelative("interruptionSource");
+            SerializedProperty isReadOnlyProp = property.FindPropertyRelative("isReadOnly");
 
             if (nameProp != null && motionProp != null && interruptionSourceProp != null && isReadOnlyProp != null)
             {
@@ -69,12 +67,6 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
                 if (EditorGUI.EndChangeCheck())
                     property.serializedObject.ApplyModifiedProperties();
             }
-            else
-            {
-
-            }
         }
     }
 }
-
-#endif

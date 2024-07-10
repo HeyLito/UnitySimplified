@@ -6,11 +6,6 @@ namespace UnitySimplified.SpriteAnimator
         public override string Identifier => "Entry";
         public override TransitionPort TransitionPorts => TransitionPort.CanConnectFrom;
 
-        public override bool OnTryPlay(BaseSpriteAnimator animator)
-        {
-            if (!animator.IsPlaying() && animator.Play(this))
-                return true;
-            else return false;
-        }
+        public override bool OnTryPlay(AbstractSpriteAnimator animator) => !animator.IsPlaying() && animator.Play(this);
     }
 }

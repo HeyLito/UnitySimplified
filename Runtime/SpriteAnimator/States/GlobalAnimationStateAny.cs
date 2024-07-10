@@ -8,9 +8,10 @@ namespace UnitySimplified.SpriteAnimator
         public override void OnSequenceUpdate(AnimationState current, float time)
         {
             base.OnSequenceUpdate(current, time);
-            if (current != this && Transitions.Count > 0)
-                if (Animator.Next == (null, null) && TryGetNext(time, out AnimationTransition next))
-                    Animator.PlayNext(next.OutState, next.TransitionOffset);
+            if (current == this || Transitions.Count <= 0)
+                return;
+            if (Animator.Next == (null, null) && TryGetNext(time, out AnimationTransition next))
+                Animator.PlayNext(next.OutState, next.FrameOffset);
         }
     }
 }

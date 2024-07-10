@@ -6,19 +6,17 @@ namespace UnitySimplified.SpriteAnimator.Parameters
     public static class ParameterExtensions
     {
         [NonSerialized]
-        private static readonly Dictionary<BaseSpriteAnimator, Dictionary<Type, Dictionary<string, HashSet<Parameter>>>> CachedAnimatorParameters = new();
+        private static readonly Dictionary<AbstractSpriteAnimator, Dictionary<Type, Dictionary<string, HashSet<Parameter>>>> CachedAnimatorParameters = new();
         [NonSerialized]
         private static readonly List<(Parameter parameter, AnimationTransition transitionOfParameter)> TempGetAllResults = new();
         [NonSerialized]
         private static readonly HashSet<Parameter> TempNonGenericResults = new();
 
+        public static void GetAllParameters(this AbstractSpriteAnimator animator, List<(Parameter parameter, AnimationTransition transitionOfParameter)> results) => DoGetAllParameters(animator, results);
+        public static bool TryGetParameters<T>(this AbstractSpriteAnimator animator, string name, HashSet<Parameter<T>> results) => DoTryGetParameters(animator, name, results);
+        public static bool TryGetParameters(this AbstractSpriteAnimator animator, Type valuetype, string name, HashSet<Parameter> results) => DoTryGetParameters(animator, valuetype, name, results);
 
-
-        public static void GetAllParameters(this BaseSpriteAnimator animator, List<(Parameter parameter, AnimationTransition transitionOfParameter)> results) => DoGetAllParameters(animator, results);
-        public static bool TryGetParameters<T>(this BaseSpriteAnimator animator, string name, HashSet<Parameter<T>> results) => DoTryGetParameters(animator, name, results);
-        public static bool TryGetParameters(this BaseSpriteAnimator animator, Type valuetype, string name, HashSet<Parameter> results) => DoTryGetParameters(animator, valuetype, name, results);
-
-        private static void DoGetAllParameters(this BaseSpriteAnimator animator, List<(Parameter, AnimationTransition)> results)
+        private static void DoGetAllParameters(this AbstractSpriteAnimator animator, List<(Parameter, AnimationTransition)> results)
         {
             if (results == null)
                 throw new ArgumentNullException(nameof(results));
@@ -29,22 +27,22 @@ namespace UnitySimplified.SpriteAnimator.Parameters
                         if (animationCondition is Parameter parameter)
                             results.Add((parameter, animationTransition));
         }
-        private static bool DoTryGetParameters<T>(BaseSpriteAnimator animator, string name, HashSet<Parameter<T>> results)
+        private static bool DoTryGetParameters<T>(AbstractSpriteAnimator animator, string name, HashSet<Parameter<T>> results)
         {
             TempNonGenericResults.Clear();
             DoTryGetParameters(animator, typeof(T), name, TempNonGenericResults);
             foreach (var result in TempNonGenericResults)
-                if (result is Parameter<T>)
-                    results.Add(result as Parameter<T>);
+                if (result is Parameter<T> parameter)
+                    results.Add(parameter);
             return results.Count > 0;
         }
-        private static bool DoTryGetParameters(BaseSpriteAnimator animator, Type type, string name, HashSet<Parameter> results)
+        private static bool DoTryGetParameters(AbstractSpriteAnimator animator, Type type, string name, HashSet<Parameter> results)
         {
             if (!CachedAnimatorParameters.TryGetValue(animator, out var cachedParametersByTypes))
             {
                 CachedAnimatorParameters[animator] = cachedParametersByTypes = new Dictionary<Type, Dictionary<string, HashSet<Parameter>>>();
-                animator.onAnyConditionAdded += (condition) => OnAnyConditionAdded(animator, condition);
-                animator.onAnyConditionRemoved += (condition) => OnAnyConditionRemoved(animator, condition);
+                animator.onAnyAnimationConditionAddedCallback += condition => OnAnyConditionAdded(animator, condition);
+                animator.onAnyAnimationConditionRemovedCallback += condition => OnAnyConditionRemoved(animator, condition);
 
                 TempGetAllResults.Clear();
                 GetAllParameters(animator, TempGetAllResults);
@@ -84,7 +82,7 @@ namespace UnitySimplified.SpriteAnimator.Parameters
             if (parameters.Contains(parameter))
                 parameters.Remove(parameter);
         }
-        private static void OnAnyConditionAdded(BaseSpriteAnimator animator, AnimationCondition condition)
+        private static void OnAnyConditionAdded(AbstractSpriteAnimator animator, AnimationCondition condition)
         {
             if (condition is not Parameter parameter)
                 return;
@@ -93,7 +91,7 @@ namespace UnitySimplified.SpriteAnimator.Parameters
             if (CachedAnimatorParameters.TryGetValue(animator, out var cachedParametersByTypes))
                 DoStoreParameter(parameter, parameter.ValueType, parameter.Name, cachedParametersByTypes);
         }
-        private static void OnAnyConditionRemoved(BaseSpriteAnimator animator, AnimationCondition condition)
+        private static void OnAnyConditionRemoved(AbstractSpriteAnimator animator, AnimationCondition condition)
         {
             if (condition is not Parameter parameter)
                 return;

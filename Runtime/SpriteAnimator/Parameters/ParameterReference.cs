@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace UnitySimplified.SpriteAnimator.Parameters
 {
@@ -15,10 +16,11 @@ namespace UnitySimplified.SpriteAnimator.Parameters
     public class ParameterReference<TParameter, TValue> : ParameterReference where TParameter : Parameter<TValue>
     {
         [SerializeField]
-        private TValue _value;
+        [FormerlySerializedAs("_value")]
+        private TValue value;
 
         public override Type Type => typeof(TParameter);
         public override Type ValueType => typeof(TValue);
-        public override object Value { get => _value; internal set => _value = (TValue)value; }
+        public override object Value { get => value; internal set => this.value = (TValue)value; }
     }
 }

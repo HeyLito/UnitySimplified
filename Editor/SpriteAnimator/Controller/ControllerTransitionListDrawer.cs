@@ -17,12 +17,12 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
         #region METHODS_UNITY_CALLBACKS
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            SerializedProperty itemsProp = property.FindPropertyRelative("_items");
+            SerializedProperty itemsProp = property.FindPropertyRelative("items");
             return _drawableLists.GetList(itemsProp, () => InitializeReorderableList(itemsProp)).GetHeight();
         }
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            SerializedProperty itemsProp = property.FindPropertyRelative("_items");
+            SerializedProperty itemsProp = property.FindPropertyRelative("items");
             ReorderableList itemsList = _drawableLists.GetList(itemsProp, () => InitializeReorderableList(itemsProp));
             Rect itemsRect = new(position) { height = itemsList.GetHeight() };
 

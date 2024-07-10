@@ -1,6 +1,7 @@
 using System;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnitySimplified.VariableReferences;
 using UnitySimplified.SpriteAnimator.Parameters;
 
@@ -10,59 +11,60 @@ namespace UnitySimplified.SpriteAnimator.Controller
     public class ControllerCondition
     {
         [SerializeField, HideInInspector]
-        private string _parameterIdentifier = "";
+        [FormerlySerializedAs("_parameterIdentifier")]
+        private string parameterIdentifier = "";
         [SerializeField, SerializeReference]
-        private ParameterReference _parameterReference;
+        [FormerlySerializedAs("_parameterReference")]
+        private ParameterReference parameterReference;
         [SerializeField]
-        private ParameterComparer _parameterComparer;
-
+        [FormerlySerializedAs("_parameterComparer")]
+        private ParameterComparer parameterComparer;
 
         internal ControllerCondition(ControllerParameter controllerParameter)
         {
             var parameter = (Parameter)Activator.CreateInstance(controllerParameter.ParameterType, new KeywordReference("NULL"));
             if (parameter == null)
                 return;
-            _parameterIdentifier = controllerParameter.GetIdentifier();
-            _parameterReference = parameter.GetReference();
-            _parameterReference.Value = parameter.RhsDefaultValue;
-            _parameterComparer = parameter.Comparer;
+            parameterIdentifier = controllerParameter.GetIdentifier();
+            parameterReference = parameter.GetReference();
+            parameterReference.Value = parameter.RhsDefaultValue;
+            parameterComparer = parameter.Comparer;
         }
-
-
 
         public bool TryGetCondition(SpriteAnimatorController controller, out AnimationCondition condition)
         {
             condition = null;
-            if (!string.IsNullOrEmpty(_parameterIdentifier) && _parameterComparer != null && _parameterReference != null)
-                if (controller.TryGetParameterFromIdentifier(_parameterIdentifier, out var controllerParameter))
-                    if (controllerParameter.ParameterValueType == _parameterReference.ValueType)
-                    {
-                        BindingFlags parameterConstructorFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
-                        var parameterType = controllerParameter.ParameterType;
-                        var parameterNameKeyword = controllerParameter.NameKeyword;
-                        var parameterLhsValue = controllerParameter.ParameterValue;
-                        var parameterRhsValue = _parameterReference.Value;
-                        ConstructorInfo parameterConstructorInfo = null;
-                        foreach (var constructorInfo in parameterType.GetConstructors(parameterConstructorFlags))
-                        {
-                            var constructorParameters = constructorInfo.GetParameters();
-                            if (constructorParameters.Length == 3 &&
-                                constructorParameters[0].ParameterType == parameterNameKeyword.GetType() &&
-                                constructorParameters[1].ParameterType == parameterLhsValue.GetType() &&
-                                constructorParameters[2].ParameterType == parameterRhsValue.GetType())
-                            {
-                                parameterConstructorInfo = constructorInfo;
-                                break;
-                            }
-                        }
-                        if (parameterConstructorInfo != null)
-                        {
-                            condition = Activator.CreateInstance(parameterType, parameterConstructorFlags, null, new object[] { parameterNameKeyword, parameterLhsValue, parameterRhsValue }, null) as Parameter;
-                            return true;
-                        }
-                        else throw new MissingMemberException($"{parameterType} does not contain a constructor with params [{parameterNameKeyword.GetType()}, {parameterLhsValue.GetType()}, {parameterRhsValue.GetType()}]");
-                    }
-            return false;
+            if (string.IsNullOrEmpty(parameterIdentifier) || parameterComparer == null || parameterReference == null)
+                return false;
+            if (!controller.TryGetParameterFromIdentifier(parameterIdentifier, out var controllerParameter))
+                return false;
+            if (controllerParameter.ParameterValueType != parameterReference.ValueType)
+                return false;
+
+            BindingFlags parameterConstructorFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+            var parameterType = controllerParameter.ParameterType;
+            var parameterNameKeyword = controllerParameter.NameKeyword;
+            var parameterLhsValue = controllerParameter.ParameterValue;
+            var parameterRhsValue = parameterReference.Value;
+            ConstructorInfo parameterConstructorInfo = null;
+            foreach (var constructorInfo in parameterType.GetConstructors(parameterConstructorFlags))
+            {
+                var constructorParameters = constructorInfo.GetParameters();
+                if (constructorParameters.Length != 3 ||
+                    constructorParameters[0].ParameterType != parameterNameKeyword.GetType() ||
+                    constructorParameters[1].ParameterType != parameterLhsValue.GetType() ||
+                    constructorParameters[2].ParameterType != parameterRhsValue.GetType())
+                    continue;
+                parameterConstructorInfo = constructorInfo;
+                break;
+            }
+
+            if (parameterConstructorInfo == null)
+                throw new MissingMemberException($"{parameterType} does not contain a constructor with params [{parameterNameKeyword.GetType()}, {parameterLhsValue.GetType()}, {parameterRhsValue.GetType()}]");
+
+            condition = Activator.CreateInstance(parameterType, parameterConstructorFlags, null, new object[] { parameterNameKeyword, parameterLhsValue, parameterRhsValue }, null) as Parameter;
+            return true;
+
         }
     }
 }

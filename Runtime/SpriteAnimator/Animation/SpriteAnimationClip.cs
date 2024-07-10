@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnitySimplified.VariableReferences;
 
 namespace UnitySimplified.SpriteAnimator
@@ -7,18 +8,15 @@ namespace UnitySimplified.SpriteAnimator
     public class SpriteAnimationClip : ScriptableObject, IVariableAsset<SpriteAnimation>
     {
         [SerializeField]
-        private SpriteAnimation _animation = new();
+        [FormerlySerializedAs("_animation")]
+        private SpriteAnimation animation = new();
 
+        public SpriteAnimation Animation => animation;
 
-        public SpriteAnimation Animation => _animation;
-
-
+        public static implicit operator SpriteAnimation(SpriteAnimationClip clip) => clip.animation;
 
         SpriteAnimation IVariableAsset<SpriteAnimation>.GetValue() => this;
-        void IVariableAsset<SpriteAnimation>.SetValue(SpriteAnimation value) => throw new System.NotImplementedException();
-        void IVariableAsset<SpriteAnimation>.SetValue(IVariableAsset<SpriteAnimation> otherValue) => throw new System.NotImplementedException();
-
-
-        public static implicit operator SpriteAnimation(SpriteAnimationClip clip) => clip._animation;
+        void IVariableAsset<SpriteAnimation>.SetValue(SpriteAnimation value) => animation  = value;
+        void IVariableAsset<SpriteAnimation>.SetValue(IVariableAsset<SpriteAnimation> variableAsset) => animation = variableAsset.GetValue();
     }
 }

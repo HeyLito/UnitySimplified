@@ -2,20 +2,23 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+// ReSharper disable ParameterHidesMember
 
 namespace UnitySimplified.SpriteAnimator
 {
     [DisallowMultipleComponent]
-    public abstract class BaseSpriteAnimator : MonoBehaviour
+    public abstract class AbstractSpriteAnimator : MonoBehaviour
     {
-        public delegate void SpriteUpdateCallbackDelegate(Sprite sprite);
+        public delegate void PlayCallbackDelegate();
+        public delegate void StopCallbackDelegate();
+        public delegate void SpriteUpdatedCallbackDelegate(Sprite sprite);
+        internal delegate void AnimationConditionCallbackDelegate(AnimationCondition condition);
 
         #region FIELDS
         [NonSerialized]
-        internal Action<AnimationCondition> onAnyConditionAdded;
+        internal AnimationConditionCallbackDelegate onAnyAnimationConditionAddedCallback;
         [NonSerialized]
-        internal Action<AnimationCondition> onAnyConditionRemoved;
-
+        internal AnimationConditionCallbackDelegate onAnyAnimationConditionRemovedCallback;
         [NonSerialized]
         private bool _initialized;
         [NonSerialized]
@@ -32,7 +35,31 @@ namespace UnitySimplified.SpriteAnimator
         private (AnimationState state, int? startFrame) _next = (null, null);
         [NonSerialized]
         private readonly Queue<SpriteAnimation.EventTriggerReceiver> _tempEventTriggerReceivers = new();
-        private event SpriteUpdateCallbackDelegate _onSpriteUpdateCallback = null;
+        [NonSerialized]
+        private PlayCallbackDelegate _onPlayCallback;
+        [NonSerialized]
+        private StopCallbackDelegate _onStopCallback;
+        [NonSerialized]
+        private SpriteUpdatedCallbackDelegate _onSpriteUpdatedCallback;
+        #endregion
+
+
+        #region EVENTS
+        public event PlayCallbackDelegate OnPlayCallback
+        {
+            add { lock (this) _onPlayCallback += value; }
+            remove { lock (this) _onPlayCallback -= value; }
+        }
+        public event StopCallbackDelegate OnStopCallback
+        {
+            add { lock (this) _onStopCallback += value; }
+            remove { lock (this) _onStopCallback -= value; }
+        }
+        public event SpriteUpdatedCallbackDelegate OnSpriteUpdatedCallback
+        {
+            add { lock (this) _onSpriteUpdatedCallback += value; }
+            remove { lock (this) _onSpriteUpdatedCallback -= value; }
+        }
         #endregion
 
 
@@ -41,15 +68,10 @@ namespace UnitySimplified.SpriteAnimator
         public (AnimationState state, int? frame) Current => (_current.state, _current.frame);
         public (AnimationState state, int? startFrame) Next => _next;
         public IReadOnlyCollection<AnimationState> AnimationStates => _orderedAnimationStates;
-        public event SpriteUpdateCallbackDelegate OnSpriteUpdateCallback
-        {
-            add { lock (this) _onSpriteUpdateCallback += value; }
-            remove { lock (this) _onSpriteUpdateCallback -= value; }
-        }
         #endregion
 
 
-        #region METHODS_PROTECTED_EVENTS
+        #region METHODS_PROTECTED_MESSAGES
         protected virtual void OnDisable() => Stop();
         protected virtual void OnInitialize() { }
         #endregion
@@ -63,7 +85,7 @@ namespace UnitySimplified.SpriteAnimator
             Initialize();
             if (!DoVerifyAnimationState(animationState, nameof(animationState), out var exception))
                 throw exception;
-            
+
             DoAddAnimationState(animationState);
             return true;
         }
@@ -72,7 +94,7 @@ namespace UnitySimplified.SpriteAnimator
             Initialize();
             if (!DoVerifyAnimationState(animationState, nameof(animationState), out var exception))
                 throw exception;
-            
+
             return DoRemoveAnimationState(animationState);
         }
 
@@ -84,9 +106,12 @@ namespace UnitySimplified.SpriteAnimator
         {
             if (_current == (null, null, null))
                 return;
-            
+
             if (_current.sequence != null)
+            {
+                _onStopCallback?.Invoke();
                 StopCoroutine(_current.sequence);
+            }
             _current = (null, null, null);
         }
         //public void Restart()
@@ -106,7 +131,7 @@ namespace UnitySimplified.SpriteAnimator
         {
             if (TryGetAnimationState(stateName, out var animationState))
                 return DoPlay(animationState, 0, false);
-            
+
             Debug.LogWarning($"Could not play AnimationState \"{name}\" because it does not exist!");
             return false;
         }
@@ -122,14 +147,14 @@ namespace UnitySimplified.SpriteAnimator
         {
             if (animationState != null)
                 return DoPlay(animationState, 0, false);
-            
+
             throw new ArgumentNullException($"Could not play {nameof(animationState)} because it is null!");
         }
         public bool Play(AnimationState animationState, int startFrame)
         {
             if (animationState != null)
                 return DoPlay(animationState, startFrame, false);
-            
+
             throw new ArgumentNullException($"Could not play {nameof(animationState)} because it is null!");
         }
         public void PlayNext(AnimationState animationState, int startFrame)
@@ -177,7 +202,7 @@ namespace UnitySimplified.SpriteAnimator
         public void AddTriggerReceiver(SpriteAnimation.EventTriggerReceiver triggerReceiver) => DoAddTriggerReceiver(triggerReceiver);
         public void RemoveTriggerReceiver(SpriteAnimation.EventTriggerReceiver triggerReceiver) => DoRemoveTriggerReceiver(triggerReceiver);
         #endregion
-        
+
         #region METHODS_PRIVATE
         private void Initialize()
         {
@@ -225,7 +250,7 @@ namespace UnitySimplified.SpriteAnimator
 
             foreach (var transition in state.Transitions)
                 foreach (var condition in transition.Conditions)
-                    onAnyConditionAdded?.Invoke(condition);
+                    onAnyAnimationConditionAddedCallback?.Invoke(condition);
         }
         private bool DoRemoveAnimationState(AnimationState state)
         {
@@ -240,7 +265,7 @@ namespace UnitySimplified.SpriteAnimator
 
             foreach (var transition in state.Transitions)
                 foreach (var condition in transition.Conditions)
-                    onAnyConditionRemoved?.Invoke(condition);
+                    onAnyAnimationConditionRemovedCallback?.Invoke(condition);
 
             return true;
         }
@@ -251,7 +276,7 @@ namespace UnitySimplified.SpriteAnimator
                 if (!string.IsNullOrEmpty(triggerReceiver.Identifier))
                 {
                     if (!_triggerReceiversByIdentifiers.TryGetValue(triggerReceiver.Identifier, out var triggerReceivers))
-                        _triggerReceiversByIdentifiers[triggerReceiver.Identifier] = triggerReceivers = new();
+                        _triggerReceiversByIdentifiers[triggerReceiver.Identifier] = triggerReceivers = new HashSet<SpriteAnimation.EventTriggerReceiver>();
                     triggerReceivers.Add(triggerReceiver);
                 }
                 else throw new ArgumentException($"{nameof(triggerReceiver)}.{nameof(SpriteAnimation.EventTriggerReceiver.Identifier)} is null or empty.");
@@ -274,11 +299,15 @@ namespace UnitySimplified.SpriteAnimator
         }
         private bool DoPlay(AnimationState state, int startFrame, bool forcePlay)
         {
+            if (!gameObject.activeInHierarchy)
+                return false;
+
             var isPlaying = IsPlaying();
             if (isPlaying)
                 if (!forcePlay)
                     return false;
-            
+
+            _onPlayCallback?.Invoke();
             DoPlayAnimationState(state, startFrame);
             return true;
         }
@@ -296,7 +325,7 @@ namespace UnitySimplified.SpriteAnimator
             if (state.Animation == null || state.Animation.Frames.Length <= startFrame)
                 return;
             Sprite = state.Animation.Frames[startFrame];
-            _onSpriteUpdateCallback?.Invoke(Sprite);
+            _onSpriteUpdatedCallback?.Invoke(Sprite);
             HandleAnimationFrameEvents(startFrame, state.Animation);
         }
         private void HandleAnimationFrameEvents(int frame, SpriteAnimation animation)
@@ -344,7 +373,7 @@ namespace UnitySimplified.SpriteAnimator
                 if (targetFrameTime == 0)
                 {
                     if (_next == (null, null) && state.TryGetNext(elapsedTime, out AnimationTransition next))
-                        PlayNext(next.OutState, next.TransitionOffset);
+                        PlayNext(next.OutState, next.FrameOffset);
                     loop = false;
                 }
 
@@ -365,7 +394,7 @@ namespace UnitySimplified.SpriteAnimator
                         loop = false;
                     else if (state.TryGetNext(elapsedTime, out AnimationTransition next))
                     {
-                        PlayNext(next.OutState, next.TransitionOffset);
+                        PlayNext(next.OutState, next.FrameOffset);
                         loop = false;
                     }
 
@@ -382,7 +411,7 @@ namespace UnitySimplified.SpriteAnimator
                 if (state.Animation != null && state.Animation.Frames.Length > frame)
                 {
                     Sprite = state.Animation?.Frames[frame];
-                    _onSpriteUpdateCallback?.Invoke(Sprite);
+                    _onSpriteUpdatedCallback?.Invoke(Sprite);
                 }
 
                 if (!loop)

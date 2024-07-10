@@ -15,6 +15,9 @@ namespace UnitySimplified.SpriteAnimator
 
         private static List<GlobalAnimationState> _states;
 
+        internal override bool IsGlobal => true;
+        public virtual int PrioritySort => 0;
+        public override int Priority => -1;
         public static IReadOnlyList<GlobalAnimationState> States
         {
             get
@@ -24,10 +27,6 @@ namespace UnitySimplified.SpriteAnimator
                 return _states;
             }
         }
-
-        internal override bool IsGlobal => true;
-        public virtual int PrioritySort { get; } = 0;
-        public override int Priority => -1;
 
 
 #if UNITY_EDITOR
@@ -46,7 +45,7 @@ namespace UnitySimplified.SpriteAnimator
             _states.Sort(new DescendingOrderSorter());
         }
 
-        public virtual void OnPlaying(BaseSpriteAnimator animator) { }
-        public virtual bool OnTryPlay(BaseSpriteAnimator animator) => false;
+        public virtual void OnPlaying(AbstractSpriteAnimator animator) { }
+        public virtual bool OnTryPlay(AbstractSpriteAnimator animator) => false;
     }
 }

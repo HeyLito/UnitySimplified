@@ -1,7 +1,10 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnitySimplified.VariableReferences;
 using static UnitySimplified.SpriteAnimator.AnimationState;
+// ReSharper disable NotAccessedField.Local
+#pragma warning disable IDE0052
 
 namespace UnitySimplified.SpriteAnimator.Controller
 {
@@ -15,62 +18,58 @@ namespace UnitySimplified.SpriteAnimator.Controller
             public static implicit operator SpriteAnimation(MotionReference reference) => reference.Value;
         }
 
-#pragma warning disable IDE0052
         [SerializeField]
-        private string _name;
+        [FormerlySerializedAs("_name")]
+        private string name;
         [SerializeField]
-        private string _identifier;
+        [FormerlySerializedAs("_identifier")]
+        private string identifier;
         [SerializeField]
-        private MotionReference _motion;
+        [FormerlySerializedAs("_motion")]
+        private MotionReference motion;
         [SerializeField, HideInInspector]
-        private bool _isGlobal;
+        [FormerlySerializedAs("_isGlobal")]
+        private bool isGlobal;
         [SerializeField, HideInInspector]
-        private bool _isReadOnly;
+        [FormerlySerializedAs("_isReadOnly")]
+        private bool isReadOnly;
         [SerializeField, HideInInspector]
-        private TransitionPort _transitionPorts = (TransitionPort)(-1);
+        [FormerlySerializedAs("_transitionPorts")]
+        private TransitionPort transitionPorts = (TransitionPort)(-1);
         [SerializeField]
-        private InterruptionSource _interruptionSource = InterruptionSource.AnyState;
-#pragma warning restore IDE0052
-
-        public string Name => _name;
+        [FormerlySerializedAs("_interruptionSource")]
+        private InterruptionSource interruptionSource = InterruptionSource.AnyState;
 
         public ControllerState() { }
-        public ControllerState(SpriteAnimatorController controller, string globalName, TransitionPort transitionPorts)
+        public ControllerState(SpriteAnimatorController controller, string globalName, TransitionPort transitionPorts) : this(controller, globalName, true, true, transitionPorts) { }
+        public ControllerState(SpriteAnimatorController controller, string name, bool isReadOnly = false) : this(controller, name, isReadOnly, false, (TransitionPort)(-1)) { }
+        public ControllerState(SpriteAnimatorController controller, string name, bool isReadOnly, bool isGlobal, TransitionPort transitionPorts)
         {
-            _motion = new MotionReference(null);
-            _name = globalName;
-            _identifier = IControllerIdentifiable.GenerateLocalUniqueIdentifier(controller.ExistingIdentifiers());
-            _isGlobal = true;
-            _isReadOnly = true;
-            _transitionPorts = transitionPorts;
-        }
-        public ControllerState(SpriteAnimatorController controller, string name, bool isReadOnly = false)
-        {
-            _motion = new MotionReference(null);
-            _name = name;
-            _identifier = IControllerIdentifiable.GenerateLocalUniqueIdentifier(controller.ExistingIdentifiers());
-            _isGlobal = false;
-            _isReadOnly = isReadOnly;
-            _transitionPorts = (TransitionPort)(-1);
+            motion = new MotionReference(null);
+            identifier = IControllerIdentifiable.GenerateLocalUniqueIdentifier(controller.ExistingIdentifiers());
+            this.name = name;
+            this.isReadOnly = isReadOnly;
+            this.isGlobal = isGlobal;
+            this.transitionPorts = transitionPorts;
         }
 
+        public string Name => name;
 
-
-        public string GetIdentifier() => _identifier;
-        internal bool CanConnectTo(ControllerState toState) => _transitionPorts.HasFlag(TransitionPort.CanConnectFrom) && toState._transitionPorts.HasFlag(TransitionPort.CanConnectTo);
-        internal bool TryGetAsAnimationState(BaseSpriteAnimator animator, bool createIfMissing, out AnimationState animationState)
+        public string GetIdentifier() => identifier;
+        internal bool CanConnectTo(ControllerState toState) => transitionPorts.HasFlag(TransitionPort.CanConnectFrom) && toState.transitionPorts.HasFlag(TransitionPort.CanConnectTo);
+        internal bool TryGetAsAnimationState(AbstractSpriteAnimator animator, bool createIfMissing, out AnimationState animationState)
         {
-            if (_isGlobal)
+            if (isGlobal)
             {
-                bool result = animator.TryGetAnimationState(_name, out animationState);
+                bool result = animator.TryGetAnimationState(name, out animationState);
                 if (!result)
-                    Debug.LogWarning($"Controller state \"<b>{_name}</b>\" is set as <b>Global</b>, but could not find global animation state on animator?");
+                    Debug.LogWarning($"Controller state \"<b>{name}</b>\" is set as <b>Global</b>, but could not find global animation state on animator?");
                 return result;
             }
             else
             {
-                if (!animator.TryGetAnimationState(_name, out animationState) && createIfMissing)
-                    animationState = animator.CreateAnimationState(_name, _motion, _interruptionSource);
+                if (!animator.TryGetAnimationState(name, out animationState) && createIfMissing)
+                    animationState = animator.CreateAnimationState(name, motion, interruptionSource);
                 return animationState != null;
             }
         }
