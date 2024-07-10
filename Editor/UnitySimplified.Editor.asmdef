@@ -1,0 +1,16 @@
+{
+    "name": "UnitySimplified.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:4f7fa355a4961a648a4a278e9af6df6f"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
