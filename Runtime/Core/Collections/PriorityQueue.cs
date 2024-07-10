@@ -134,5 +134,14 @@ namespace UnitySimplified.Collections
             value = new KeyValuePair<TPriority, TValue>(pair.Key, output);
             return true;
         }
+
+        public class DescendingComparer<T> : IComparer<T> where T : IComparable
+        {
+            public int Compare(T x, T y) => y.CompareTo(x);
+        }
+        public class AscendingComparer<T> : IComparer<T> where T : IComparable
+        {
+            public int Compare(T x, T y) => x.CompareTo(y);
+        }
     }
 }
