@@ -1,8 +1,5 @@
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using UnityEngine;
-
-[assembly: InternalsVisibleTo("UnitySimplified.Editor", AllInternalsVisible = true)]
 
 namespace UnitySimplified.RuntimeDatabases
 {

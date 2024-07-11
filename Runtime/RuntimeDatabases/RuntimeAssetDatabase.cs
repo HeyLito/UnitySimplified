@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnitySimplified.Collections;
 using UnityObject = UnityEngine.Object;
 
@@ -10,8 +11,10 @@ namespace UnitySimplified.RuntimeDatabases
     public class RuntimeAssetDatabase : RuntimeDatabase<RuntimeAssetDatabase>
     {
         [SerializeField, HideInInspector]
+        [FormerlySerializedAs("_assetsByKeys")]
         private SerializableDictionary<string, UnityObject> assetsByKeys = new();
         [SerializeField, HideInInspector]
+        [FormerlySerializedAs("_keysByAssets")]
         private SerializableDictionary<UnityObject, string> keysByAssets = new();
 
 
@@ -40,17 +43,18 @@ namespace UnitySimplified.RuntimeDatabases
             typeof(RuntimeAnimatorController),
             typeof(AnimationClip)
         };
-        
-        
-        internal IList Items => assetsByKeys;
 
+
+        internal IList Items => assetsByKeys;
 
         protected override void OnCreate()
         {
-            foreach (var asset in RuntimeDatabaseUtility.GetBuiltInAssets())
+#if UNITY_EDITOR
+            foreach (var asset in UnitySimplifiedEditor.RuntimeDatabases.RuntimeDatabaseUtility.GetBuiltInAssets().Where(asset => asset != null))
                 TryAdd(asset);
-            foreach (var asset in RuntimeDatabaseUtility.GetAssetsInDirectories(ValidatedAssetExtensions))
+            foreach (var asset in UnitySimplifiedEditor.RuntimeDatabases.RuntimeDatabaseUtility.GetAssetsInDirectories(ValidatedAssetExtensions).Where(asset => asset != null))
                 TryAdd(asset);
+#endif
         }
 
         public bool Contains(string id) => TryGet(id, out _);
@@ -58,8 +62,6 @@ namespace UnitySimplified.RuntimeDatabases
         public bool TryGet(string id, out UnityObject asset) => assetsByKeys.TryGetValue(id, out asset);
         public bool TryGet(UnityObject asset, out string id) => keysByAssets.TryGetValue(asset, out id);
         public bool SupportsType(Type type) => type.IsSubclassOf(typeof(ScriptableObject)) || ValidatedAssetTypes.Any(supportedAssetType => supportedAssetType.IsAssignableFrom(type));
-
-
 
         internal void Clear()
         {

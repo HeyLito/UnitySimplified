@@ -6,13 +6,12 @@ using UnityEditorInternal;
 
 namespace UnitySimplifiedEditor.RuntimeDatabases
 {
-    public class RuntimeDatabaseEditorUtility : MonoBehaviour
+    public static class RuntimeDatabaseEditorUtility
     {
         private static GUIStyle _boxStyle;
         private static GUIStyle _idStyle;
         private static GUIStyle _unityObjectStyle;
         private static GUIStyle _unityObjectErrorStyle;
-
 
         public static GUIStyle BoxStyle
         {

@@ -61,13 +61,10 @@ namespace UnitySimplified.RuntimeDatabases
         [NonSerialized]
         private static T _instance;
 
-
         /// <summary>
         /// Returns the asset data container of <see cref="T"/>.
         /// </summary>
         public static T Instance => Get();
-
-
 
         protected virtual void OnGet() { }
         protected virtual void OnCreate() { }
@@ -79,7 +76,6 @@ namespace UnitySimplified.RuntimeDatabases
 
             T instance = Resources.Load<T>(typeof(T).Name);
             bool wasCreated = false;
-
 
             if (instance == null) 
             {

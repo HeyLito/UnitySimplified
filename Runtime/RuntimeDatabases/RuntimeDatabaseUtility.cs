@@ -1,21 +1,20 @@
+#if UNITY_EDITOR
+
 using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityObject = UnityEngine.Object;
-#if UNITY_EDITOR
 using UnityEditor;
-#endif
+using UnityObject = UnityEngine.Object;
 
-namespace UnitySimplified.RuntimeDatabases
+namespace UnitySimplifiedEditor.RuntimeDatabases
 {
     public static class RuntimeDatabaseUtility
     {
         private static string[] _assetNames = Array.Empty<string>();
         public static IEnumerable<UnityObject> GetBuiltInAssets()
         {
-#if UNITY_EDITOR
             _assetNames = new[]
             {
                 "Cube.fbx",
@@ -31,7 +30,6 @@ namespace UnitySimplified.RuntimeDatabases
                 if (asset != null)
                     yield return asset;
             }
-
 
             _assetNames = new[]
             {
@@ -75,20 +73,15 @@ namespace UnitySimplified.RuntimeDatabases
                 if (asset != null)
                     yield return asset;
             }
-#else
-            yield break;
-#endif
         }
         public static IEnumerable<UnityObject> GetAssetsInDirectories(params string[] extensions)
         {
-#if UNITY_EDITOR
             return Directory.EnumerateFiles("Assets", "*", SearchOption.AllDirectories)
                             .Where(file => extensions.Any(extension => extension.StartsWith(".") && file.ToLower().EndsWith(extension)))
                             .Select(AssetDatabase.LoadAssetAtPath<UnityObject>)
                             .Where(asset => asset != null);
-#else
-            yield break;
-#endif
         }
     }
 }
+
+#endif

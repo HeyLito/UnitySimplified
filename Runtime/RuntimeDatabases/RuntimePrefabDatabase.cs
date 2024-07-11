@@ -1,26 +1,29 @@
 ﻿using System;
+using System.Linq;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnitySimplified.Collections;
 
 namespace UnitySimplified.RuntimeDatabases
 {
     public class RuntimePrefabDatabase : RuntimeDatabase<RuntimePrefabDatabase>
     {
-        [SerializeField, HideInInspector] 
+        [SerializeField, HideInInspector]
+        [FormerlySerializedAs("_prefabsByKeys")]
         private SerializableDictionary<string, GameObject> prefabsByKeys = new();
         [SerializeField, HideInInspector]
+        [FormerlySerializedAs("_keysByPrefabs")]
         private SerializableDictionary<GameObject, string> keysByPrefabs = new();
-
 
         internal IList Items => prefabsByKeys;
 
-
-
         protected override void OnCreate()
         {
-            foreach (var asset in RuntimeDatabaseUtility.GetAssetsInDirectories(".prefab"))
+#if UNITY_EDITOR
+            foreach (var asset in UnitySimplifiedEditor.RuntimeDatabases.RuntimeDatabaseUtility.GetAssetsInDirectories(".prefab").Where(asset => asset != null))
                 TryAdd((GameObject)asset);
+#endif
         }
 
         public bool Contains(string id) => TryGet(id, out _);
@@ -57,7 +60,7 @@ namespace UnitySimplified.RuntimeDatabases
                 return false;
             if (!TryGet(id, out var prefab))
                 return false;
-            
+
             prefabsByKeys.Remove(id);
             keysByPrefabs.Remove(prefab);
             return true;
