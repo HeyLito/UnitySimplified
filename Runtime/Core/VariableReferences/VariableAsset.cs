@@ -1,21 +1,18 @@
 using UnityEngine;
 using UnityEngine.Serialization;
-
-#if UNITY_EDITOR
-#pragma warning disable CS0414 // Field is assigned but its value is never used
 // ReSharper disable ParameterHidesMember
 // ReSharper disable NotAccessedField.Local
-using UnityEditor;
-#endif
 
 namespace UnitySimplified.VariableReferences
 {
     public abstract class VariableAsset : ScriptableObject
     {
 #if UNITY_EDITOR
+#pragma warning disable CS0414
         [SerializeField, TextArea(3, 10)]
         [FormerlySerializedAs("_editorDescription")]
         private string editorDescription = "";
+#pragma warning restore
 #endif
     }
 
@@ -36,7 +33,7 @@ namespace UnitySimplified.VariableReferences
         void ISerializationCallbackReceiver.OnBeforeSerialize()
         {
 #if UNITY_EDITOR
-            if (!EditorApplication.isPlaying)
+            if (!UnityEditor.EditorApplication.isPlaying)
                 runtimeValue = value;
 #endif
         }

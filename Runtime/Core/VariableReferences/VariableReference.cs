@@ -5,7 +5,7 @@ using UnityEngine.Serialization;
 namespace UnitySimplified.VariableReferences
 {
     [Serializable]
-    public class VariableReference<TValue, TReference> where TReference : IVariableAsset<TValue>
+    public class VariableReference<TValue, TReference> : IVariableReference<TValue, TReference> where TReference : IVariableAsset<TValue>
     {
         [SerializeField]
         [FormerlySerializedAs("_useConstant")]

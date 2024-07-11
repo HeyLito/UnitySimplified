@@ -4,6 +4,6 @@ namespace UnitySimplified.VariableReferences
     {
         public T GetValue();
         public void SetValue(T value);
-        public void SetValue(IVariableAsset<T> otherValue);
+        public void SetValue(IVariableAsset<T> variableAsset);
     }
 }
