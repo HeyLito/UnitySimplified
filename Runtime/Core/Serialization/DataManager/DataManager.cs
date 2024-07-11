@@ -6,7 +6,7 @@ using UnitySimplified.Serialization.Formatters;
 
 namespace UnitySimplified.Serialization
 {
-    public static class DataManager
+    public static partial class DataManager
     {
         #region FIELDS
         public static bool debug = false;
@@ -14,7 +14,7 @@ namespace UnitySimplified.Serialization
         public static string subDirectory = "User Data";
 
         private const string PathColor = "#80E6FF";
-        private static DataManagerInternal.FileDirectory _fileDirectory;
+        private static DatabaseCache _databaseCache;
         #endregion
 
         #region PROPERTIES
@@ -90,28 +90,28 @@ namespace UnitySimplified.Serialization
             if (debug)
                 Debug.Log($"[DataManagerMessage, DatabaseDirectory] Loading {nameof(TargetDataPath)} database from directory path \"{TargetDataPath}\".");
 
-            var filesModified = new List<DataManagerInternal.File>();
-            var filesAbsent = new List<DataManagerInternal.File>();
+            var modified = new List<Database.File>();
+            var missing = new List<Database.File>();
 
-            _fileDirectory ??= new DataManagerInternal.FileDirectory();
+            _databaseCache ??= new DatabaseCache();
 
             var databaseModified = false;
-            var fileDatabase = _fileDirectory.GetDatabase(TargetDataPath);
-            fileDatabase.VerifyFiles(filesModified, filesAbsent);
-            foreach (var fileAbsent in filesAbsent)
+            var database = _databaseCache.GetDatabase(TargetDataPath);
+            database.VerifyFiles(modified, missing);
+            foreach (var item in missing)
             {
-                fileDatabase.RemoveFileEntry(fileAbsent);
+                database.Remove(item);
                 databaseModified = true;
             }
 
             if (databaseModified)
             {
-                _fileDirectory.OverwriteDatabase(fileDatabase);
-                if (debug && filesAbsent.Count > 0)
-                    Debug.Log($"[DataManagerMessage, DatabaseDirectory] Removed {filesAbsent.Count} missing file reference{(filesAbsent.Count > 0 ? "s" : "")}.");
+                _databaseCache.OverwriteDatabase(database);
+                if (debug && missing.Count > 0)
+                    Debug.Log($"[DataManagerMessage, DatabaseDirectory] Removed {missing.Count} missing file reference{(missing.Count > 0 ? "s" : "")}.");
             }
             if (debug)
-                Debug.Log($"[DataManagerMessage, DatabaseDirectory] Successfully loaded {nameof(TargetDataPath)} database at path \"{fileDatabase.FullFilePath}\".");
+                Debug.Log($"[DataManagerMessage, DatabaseDirectory] Successfully loaded {nameof(TargetDataPath)} database at path \"{database.FullPath}\".");
         }
 
         /// <typeparam name="T">
@@ -140,7 +140,7 @@ namespace UnitySimplified.Serialization
         /// </param>
         private static bool DoCreateNewFile<T>(string fileIdentifier, string fileName, string fileSubPath, IDataFormatter fileFormatter, T obj)
         {
-            if (_fileDirectory == null)
+            if (_databaseCache == null)
             {
                 if (debug)
                     Debug.LogWarning($"[DataManagerError, FileDirectory] {nameof(DataManager)} file databases are not loaded or are missing.");
@@ -154,35 +154,35 @@ namespace UnitySimplified.Serialization
             if (fileFormatter.FileExtension == string.Empty)
                 throw new ArgumentException($"{nameof(fileFormatter)}.{nameof(fileFormatter.FileExtension)} is empty or NULL!");
 
-            DataManagerInternal.FileDatabase fileDatabase = _fileDirectory.GetDatabase(TargetDataPath);
-            if (fileDatabase.TryGetFileEntry(fileIdentifier, out var existingFile))
+            Database database = _databaseCache.GetDatabase(TargetDataPath);
+            if (database.TryGetFileEntry(fileIdentifier, out var existingFile))
             {
                 if (debug)
                     Debug.LogWarning($"[DataManagerError, FileCreation] {nameof(fileIdentifier)}:\"{fileIdentifier}\" already exists at path \"{existingFile.FullPath}\".");
                 return false;
             }
 
-            string filePath = fileDatabase.FilePath;
-            if (!Directory.Exists(filePath))
+            string directoryPath = database.DirectoryPath;
+            if (!Directory.Exists(directoryPath))
             {
                 if (debug)
-                    Debug.LogWarning($"[DataManagerError, FileCreation] Database path is is missing at path \"{filePath}\".");
+                    Debug.LogWarning($"[DataManagerError, FileCreation] Database path is is missing at path \"{directoryPath}\".");
                 return false;
             }
 
             if (!string.IsNullOrEmpty(fileSubPath))
             {
-                filePath = Path.Combine(filePath, fileSubPath);
-                if (!Directory.Exists(filePath))
-                    Directory.CreateDirectory(filePath);
+                directoryPath = Path.Combine(directoryPath, fileSubPath);
+                if (!Directory.Exists(directoryPath))
+                    Directory.CreateDirectory(directoryPath);
             }
 
-            var file = new DataManagerInternal.File(fileIdentifier, fileName + fileFormatter.FileExtension, filePath, fileFormatter);
-            file.Formatter.SerializeToFile(file.FullPath, obj);
-            fileDatabase.AddFileEntry(file);
-            _fileDirectory.OverwriteDatabase(fileDatabase);
+            var databaseFile = new Database.File(fileIdentifier, fileName + fileFormatter.FileExtension, directoryPath, fileFormatter);
+            databaseFile.Formatter.SerializeToFile(databaseFile.FullPath, obj);
+            database.Add(databaseFile);
+            _databaseCache.OverwriteDatabase(database);
             if (debug)
-                Debug.Log($"[DataManagerMessage, FileCreation] Successfully created file under {nameof(fileIdentifier)}:\"{fileIdentifier}\" to path \"{file.FullPath}\".");
+                Debug.Log($"[DataManagerMessage, FileCreation] Successfully created file under {nameof(fileIdentifier)}:\"{fileIdentifier}\" to path \"{databaseFile.FullPath}\".");
             return true;
 
         }
@@ -204,18 +204,18 @@ namespace UnitySimplified.Serialization
         /// </param>
         private static bool DoSaveToFile<T>(string fileIdentifier, T obj)
         {
-            if (_fileDirectory == null)
+            if (_databaseCache == null)
             {
                 if (debug)
                     Debug.LogWarning($"[DataManagerError, DatabaseDirectory] {nameof(DataManager)} databases are not loaded or are missing.");
                 return false;
             }
-            DataManagerInternal.FileDatabase fileDatabase = _fileDirectory.GetDatabase(TargetDataPath);
-            if (fileDatabase.TryGetFileEntry(fileIdentifier, out DataManagerInternal.File file))
+            Database database = _databaseCache.GetDatabase(TargetDataPath);
+            if (database.TryGetFileEntry(fileIdentifier, out Database.File databaseFile))
             {
-                file.Formatter.SerializeToFile(file.FullPath, obj);
+                databaseFile.Formatter.SerializeToFile(databaseFile.FullPath, obj);
                 if (debug)
-                    Debug.Log($"[DataManagerMessage, FileSave] Successfully saved {nameof(fileIdentifier)}:\"{fileIdentifier}\" to file at path \"{file.FullPath}\".");
+                    Debug.Log($"[DataManagerMessage, FileSave] Successfully saved {nameof(fileIdentifier)}:\"{fileIdentifier}\" to file at path \"{databaseFile.FullPath}\".");
                 return true;
             }
 
@@ -241,18 +241,18 @@ namespace UnitySimplified.Serialization
         /// </param>
         private static bool DoLoadFromFile<T>(string fileIdentifier, T obj)
         {
-            if (_fileDirectory == null)
+            if (_databaseCache == null)
             {
                 if (debug)
                     Debug.LogWarning($"[DataManagerError, DatabaseDirectory] {nameof(DataManager)} databases are not loaded or are missing.");
                 return false;
             }
-            DataManagerInternal.FileDatabase fileDatabase = _fileDirectory.GetDatabase(TargetDataPath);
-            if (fileDatabase.TryGetFileEntry(fileIdentifier, out DataManagerInternal.File file))
+            Database database = _databaseCache.GetDatabase(TargetDataPath);
+            if (database.TryGetFileEntry(fileIdentifier, out Database.File databaseFile))
             {
-                file.Formatter.DeserializeFromFile(file.FullPath, obj);
+                databaseFile.Formatter.DeserializeFromFile(databaseFile.FullPath, obj);
                 if (debug)
-                    Debug.Log($"[DataManagerMessage, FileLoad] Successfully loaded {nameof(fileIdentifier)}:\"{fileIdentifier}\" from the file found at path \"{file.FullPath}\".");
+                    Debug.Log($"[DataManagerMessage, FileLoad] Successfully loaded {nameof(fileIdentifier)}:\"{fileIdentifier}\" from the file found at path \"{databaseFile.FullPath}\".");
                 return true;
             }
 
@@ -273,27 +273,27 @@ namespace UnitySimplified.Serialization
         /// </param>
         private static bool DoDeleteFile(string fileIdentifier)
         {
-            if (_fileDirectory == null)
+            if (_databaseCache == null)
             {
                 if (debug)
                     Debug.LogWarning($"[DataManagerError, DatabaseDirectory] {nameof(DataManager)} databases are not loaded or are missing.");
                 return false;
             }
-            DataManagerInternal.FileDatabase fileDatabase = _fileDirectory.GetDatabase(TargetDataPath);
-            if (fileDatabase.TryGetFileEntry(fileIdentifier, out DataManagerInternal.File file))
+            Database database = _databaseCache.GetDatabase(TargetDataPath);
+            if (database.TryGetFileEntry(fileIdentifier, out Database.File databaseFile))
             {
-                if (File.Exists(file.FullPath))
+                if (File.Exists(databaseFile.FullPath))
                 {
-                    File.Delete(file.FullPath);
-                    fileDatabase.RemoveFileEntry(file);
-                    _fileDirectory.OverwriteDatabase(fileDatabase);
+                    File.Delete(databaseFile.FullPath);
+                    database.Remove(databaseFile);
+                    _databaseCache.OverwriteDatabase(database);
                     if (debug)
-                        Debug.Log($"[DataManagerMessage, FileDeletion] Successfully removed {nameof(fileIdentifier)}:\"{fileIdentifier}\" and the file found at path \"{file.FullPath}\".");
+                        Debug.Log($"[DataManagerMessage, FileDeletion] Successfully removed {nameof(fileIdentifier)}:\"{fileIdentifier}\" and the file found at path \"{databaseFile.FullPath}\".");
                 }
                 else
                 {
                     if (debug)
-                        Debug.LogWarning($"[DataManagerError, FileDeletion] Found {nameof(fileIdentifier)}:\"{fileIdentifier}\" in database, but could not find file to delete at path \"{file.FullPath}\".");
+                        Debug.LogWarning($"[DataManagerError, FileDeletion] Found {nameof(fileIdentifier)}:\"{fileIdentifier}\" in database, but could not find file to delete at path \"{databaseFile.FullPath}\".");
                     return false;
                 }
                 return true;
@@ -304,29 +304,29 @@ namespace UnitySimplified.Serialization
             return false;
         }
 
-        private static bool DoContainsFile(string fileIdentifier, out string fileName, out string filePath, out IDataFormatter fileFormatter)
+        private static bool DoContainsFile(string fileIdentifier, out string fileName, out string fileDirectoryPath, out IDataFormatter fileFormatter)
         {
-            if (_fileDirectory == null)
+            if (_databaseCache == null)
             {
                 if (debug)
                     Debug.LogWarning($"[DataManagerError, DatabaseDirectory] {nameof(DataManager)} databases are not loaded or are missing.");
                 fileName = "";
-                filePath = "";
+                fileDirectoryPath = "";
                 fileFormatter = null;
                 return false;
             }
 
-            DataManagerInternal.FileDatabase database = _fileDirectory.GetDatabase(TargetDataPath);
-            if (!database.TryGetFileEntry(fileIdentifier, out DataManagerInternal.File file))
+            Database database = _databaseCache.GetDatabase(TargetDataPath);
+            if (!database.TryGetFileEntry(fileIdentifier, out Database.File file))
             {
                 fileName = string.Empty;
-                filePath = string.Empty;
+                fileDirectoryPath = string.Empty;
                 fileFormatter = null;
                 return false;
             }
 
             fileName = file.Name;
-            filePath = file.Path;
+            fileDirectoryPath = file.DirectoryPath;
             fileFormatter = file.Formatter;
             return true;
         }

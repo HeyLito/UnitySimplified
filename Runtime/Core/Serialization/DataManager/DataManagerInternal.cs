@@ -7,171 +7,165 @@ using UnitySimplified.Serialization.Formatters;
 
 namespace UnitySimplified.Serialization
 {
-    internal sealed class DataManagerInternal
+    public static partial class DataManager
     {
         [Serializable]
-        internal class File
+        internal partial class Database
         {
             [SerializeField]
-            private string identifier;
+            private string directoryPath;
             [SerializeField]
-            private string name;
-            [SerializeField]
-            private string path;
-            [SerializeField]
-            private string formatter;
-
-            [NonSerialized]
-            private IDataFormatter _formatter;
-
-            public string Identifier => identifier;
-            public string Name => name;
-            public string Path => path;
-            public IDataFormatter Formatter
-            {
-                get
-                {
-                    if (_formatter == null)
-                    {
-                        if (string.IsNullOrEmpty(formatter))
-                            return null;
-
-                        Type fileFormatterType = Type.GetType(formatter) ?? throw new NullReferenceException();
-                        _formatter = (IDataFormatter)Activator.CreateInstance(fileFormatterType);
-                    }
-                    return _formatter;
-                }
-            }
-            public string FullPath => System.IO.Path.Combine(Path, Name);
-
-            public File(string identifier, string name, string path, IDataFormatter formatter)
-            {
-                this.identifier = identifier;
-                this.name = name;
-                this.path = path;
-                this.formatter = formatter.GetType().AssemblyQualifiedName;
-                _formatter = formatter;
-            }
-        }
-        [Serializable]
-        internal class FileDatabase
-        {
-            [SerializeField]
-            private string filePath;
-            [SerializeField]
-            private string fileName;
-            [SerializeField]
-            private List<File> fileEntries;
+            private List<File> files;
 
             [NonSerialized]
             private readonly List<File> _tempFiles;
             [NonSerialized]
-            private readonly Dictionary<string, File> _cachedFileEntriesByIDs;
+            private readonly Dictionary<string, File> _cachedFilesByIDs;
 
-            public string FilePath => filePath;
-            public string FileName => fileName;
-            public string FullFilePath => Path.Combine(filePath, fileName);
-
-            public FileDatabase(string filePath, string fileName)
+            public Database(string directoryPath)
             {
-                this.filePath = filePath;
-                this.fileName = fileName;
-                fileEntries = new List<File>();
+                this.directoryPath = directoryPath;
+                files = new List<File>();
                 _tempFiles = new List<File>();
-                _cachedFileEntriesByIDs = new Dictionary<string, File>();
+                _cachedFilesByIDs = new Dictionary<string, File>();
             }
 
-            public void VerifyFiles(List<File> filesModified, List<File> filesAbsent)
+            public static string FileName => "Database.dat";
+            public string DirectoryPath => directoryPath;
+            public string FullPath => Path.Combine(DirectoryPath, FileName);
+
+            public void VerifyFiles(List<File> modified, List<File> missing)
             {
                 _tempFiles.Clear();
-                foreach (File file in _cachedFileEntriesByIDs.Values)
-                    _tempFiles.Add(file);
+                foreach (var databaseFile in _cachedFilesByIDs.Values)
+                    _tempFiles.Add(databaseFile);
 
-                if (filesAbsent != null)
+                if (missing != null)
                 {
-                    filesAbsent.Clear();
+                    missing.Clear();
                     for (int i = _tempFiles.Count - 1; i >= 0; i--)
                     {
                         if (System.IO.File.Exists(_tempFiles[i].FullPath))
                             continue;
 
-                        filesAbsent.Add(_tempFiles[i]);
+                        missing.Add(_tempFiles[i]);
                         _tempFiles.RemoveAt(i);
                     }
                 }
-                filesModified?.Clear();
+                modified?.Clear();
             }
-            public void AddFileEntry(File file)
+            public bool TryGetFileEntry(string fileIdentifier, out File databaseFile) => _cachedFilesByIDs.TryGetValue(fileIdentifier, out databaseFile);
+            public void Add(File databaseFile)
             {
-                if (!_cachedFileEntriesByIDs.TryAdd(file.Identifier, file))
-                    throw new Exception($"Already contains {nameof(file.Identifier)}: {file.Identifier}");
+                if (!_cachedFilesByIDs.TryAdd(databaseFile.Identifier, databaseFile))
+                    throw new Exception($"Already contains {nameof(databaseFile.Identifier)}: {databaseFile.Identifier}");
             }
-            public void RemoveFileEntry(File file)
+            public void Remove(File databaseFile)
             {
-                if (!_cachedFileEntriesByIDs.Remove(file.Identifier))
-                    throw new Exception($"Does not contain {nameof(file.Identifier)}: {file.Identifier}");
+                if (!_cachedFilesByIDs.Remove(databaseFile.Identifier))
+                    throw new Exception($"Does not contain {nameof(databaseFile.Identifier)}: {databaseFile.Identifier}");
             }
-
-            public bool TryGetFileEntry(string fileIdentifier, out File file) => _cachedFileEntriesByIDs.TryGetValue(fileIdentifier, out file);
-
             public void OnBeforeSerialization()
             {
-                fileEntries.Clear();
-                foreach (var file in _cachedFileEntriesByIDs.Values)
-                    fileEntries.Add(file);
+                files.Clear();
+                foreach (var file in _cachedFilesByIDs.Values)
+                    files.Add(file);
             }
             public void OnAfterDeserialization()
             {
-                _cachedFileEntriesByIDs.Clear();
-                foreach (var file in fileEntries)
-                    _cachedFileEntriesByIDs.Add(file.Identifier, file);
+                _cachedFilesByIDs.Clear();
+                foreach (var file in files)
+                    _cachedFilesByIDs.Add(file.Identifier, file);
             }
         }
-        internal class FileDirectory
-        {
-            [NonSerialized]
-            private const string DatabaseName = "Database.DAT";
-            [NonSerialized]
-            private Dictionary<string, FileDatabase> _cachedDatabasesByFullPaths;
 
-            internal bool Contains(string databaseDirectoryPath) => _cachedDatabasesByFullPaths != null && _cachedDatabasesByFullPaths.ContainsKey(Path.Combine(databaseDirectoryPath, DatabaseName));
-            internal FileDatabase GetDatabase(string databaseDirectoryPath)
+        internal partial class Database
+        {
+            [Serializable]
+            internal class File
             {
-                string fullDatabasePath = Path.Combine(databaseDirectoryPath, DatabaseName);
-                _cachedDatabasesByFullPaths ??= new Dictionary<string, FileDatabase>();
-                if (_cachedDatabasesByFullPaths.TryGetValue(fullDatabasePath, out FileDatabase fileDatabase))
-                    return fileDatabase;
-                else
+                [SerializeField]
+                private string identifier;
+                [SerializeField]
+                private string name;
+                [SerializeField]
+                private string directoryPath;
+                [SerializeField]
+                private string formatter;
+
+                [NonSerialized]
+                private IDataFormatter _formatter;
+
+                public File(string identifier, string name, string directoryPath, IDataFormatter formatter)
                 {
-                    if (System.IO.File.Exists(fullDatabasePath))
+                    this.identifier = identifier;
+                    this.name = name;
+                    this.directoryPath = directoryPath;
+                    this.formatter = formatter.GetType().AssemblyQualifiedName;
+                    _formatter = formatter;
+                }
+
+                public string Identifier => identifier;
+                public string Name => name;
+                public string DirectoryPath => directoryPath;
+                public string FullPath => Path.Combine(DirectoryPath, Name);
+                public IDataFormatter Formatter
+                {
+                    get
                     {
-                        fileDatabase = new FileDatabase("", "");
-                        var fileStream = new FileStream(fullDatabasePath, FileMode.Open);
-                        var binaryFormatter = new BinaryFormatter();
-                        DataManagerUtility.OverwriteInstanceFromOther((FileDatabase)binaryFormatter.Deserialize(fileStream), fileDatabase);
-                        fileDatabase.OnAfterDeserialization();
-                        fileStream.Close();
+                        if (_formatter != null)
+                            return _formatter;
+                        if (string.IsNullOrEmpty(formatter))
+                            return null;
+
+                        return _formatter = (IDataFormatter)Activator.CreateInstance(Type.GetType(formatter) ?? throw new NullReferenceException());
                     }
-                    else
-                    {
-                        if (!Directory.Exists(databaseDirectoryPath))
-                            Directory.CreateDirectory(databaseDirectoryPath);
-                        fileDatabase = new FileDatabase(databaseDirectoryPath, DatabaseName);
-                        var fileStream = new FileStream(fileDatabase.FullFilePath, FileMode.Create);
-                        var binaryFormatter = new BinaryFormatter();
-                        fileDatabase.OnBeforeSerialization();
-                        binaryFormatter.Serialize(fileStream, fileDatabase);
-                        fileStream.Close();
-                    }
-                    return fileDatabase;
                 }
             }
-            internal void OverwriteDatabase(FileDatabase fileDatabase)
+        }
+
+        internal class DatabaseCache
+        {
+            [NonSerialized]
+            private Dictionary<string, Database> _cachedDatabasesByFullPaths;
+
+            internal bool ContainsDatabase(string directoryPath) => _cachedDatabasesByFullPaths != null && _cachedDatabasesByFullPaths.ContainsKey(Path.Combine(directoryPath, Database.FileName));
+            internal Database GetDatabase(string directoryPath)
             {
-                var fileStream = new FileStream(fileDatabase.FullFilePath, FileMode.Create);
+                string databasePath = Path.Combine(directoryPath, Database.FileName);
+                _cachedDatabasesByFullPaths ??= new Dictionary<string, Database>();
+                if (_cachedDatabasesByFullPaths.TryGetValue(databasePath, out Database database))
+                    return database;
+
+                if (File.Exists(databasePath))
+                {
+                    database = new Database("");
+                    var fileStream = new FileStream(databasePath, FileMode.Open);
+                    var binaryFormatter = new BinaryFormatter();
+                    DataManagerUtility.OverwriteInstanceFromOther((Database)binaryFormatter.Deserialize(fileStream), database);
+                    database.OnAfterDeserialization();
+                    fileStream.Close();
+                }
+                else
+                {
+                    if (!Directory.Exists(directoryPath))
+                        Directory.CreateDirectory(directoryPath);
+                    database = new Database(directoryPath);
+                    var fileStream = new FileStream(database.FullPath, FileMode.Create);
+                    var binaryFormatter = new BinaryFormatter();
+                    database.OnBeforeSerialization();
+                    binaryFormatter.Serialize(fileStream, database);
+                    fileStream.Close();
+                }
+                _cachedDatabasesByFullPaths.Add(database.FullPath, database);
+                return database;
+            }
+            internal void OverwriteDatabase(Database database)
+            {
+                var fileStream = new FileStream(database.FullPath, FileMode.Create);
                 var binaryFormatter = new BinaryFormatter();
-                fileDatabase.OnBeforeSerialization();
-                binaryFormatter.Serialize(fileStream, fileDatabase);
+                database.OnBeforeSerialization();
+                binaryFormatter.Serialize(fileStream, database);
                 fileStream.Close();
             }
         }
