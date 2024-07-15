@@ -1,7 +1,7 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace UnitySimplified.Collections
 {
@@ -9,6 +9,7 @@ namespace UnitySimplified.Collections
     public class ListWrapper<T> : AbstractListWrapper<T>
     {
         [SerializeField]
+        [FormerlySerializedAs("_items")]
         private List<T> items = new();
         protected override List<T> Items => items;
     }

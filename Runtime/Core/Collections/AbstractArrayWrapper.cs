@@ -1,10 +1,12 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace UnitySimplified.Collections
 {
     [Serializable]
-    public abstract class AbstractArrayWrapper<T> : IList, IStructuralComparable, IStructuralEquatable, ICloneable
+    public abstract class AbstractArrayWrapper<T> : IEnumerable<T>, IList, IStructuralComparable, IStructuralEquatable, ICloneable
     {
         protected abstract T[] Items { get; }
 
@@ -18,7 +20,9 @@ namespace UnitySimplified.Collections
         bool ICollection.IsSynchronized => Items.IsSynchronized;
         object ICollection.SyncRoot => Items.SyncRoot;
 
-        public IEnumerator GetEnumerator() => Items.GetEnumerator();
+        public IEnumerator<T> GetEnumerator() => Items.Select(x => x).GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => Items.GetEnumerator();
         void IList.Clear() => ((IList)Items).Clear();
         bool IList.Contains(object value) => ((IList)Items).Contains(value);
         void IList.Insert(int index, object value) => ((IList)Items).Insert(index, value);
