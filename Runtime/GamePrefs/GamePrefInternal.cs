@@ -222,7 +222,7 @@ namespace UnitySimplified.GamePrefs
             OnValuesChanged?.Invoke();
         }
 
-        private static GamePref Create()
+        internal static GamePref Create()
         {
             string identifier;
             do identifier = Guid.NewGuid().ToString();

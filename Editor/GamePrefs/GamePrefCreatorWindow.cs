@@ -98,9 +98,9 @@ namespace UnitySimplifiedEditor.GamePrefs
                 _serializedObject.Update();
             }
         }
-        private static GamePref GetNewPref() => typeof(GamePref).GetMethod("Create", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new object[0]) as GamePref;
-        private static GamePrefData CreateGamePrefData(string persistentIdentifier, string prefKey, object prefValue) => Activator.CreateInstance(typeof(GamePrefData), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { persistentIdentifier, prefKey, prefValue }, null, null) as GamePrefData;
-        private static GamePrefData CreateGamePrefData(GamePrefData gamePrefData) => Activator.CreateInstance(typeof(GamePrefData), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { gamePrefData }, null, null) as GamePrefData;
+        private static GamePref GetNewPref() => GamePref.Create();
+        private static GamePrefData CreateGamePrefData(string persistentIdentifier, string prefKey, object prefValue) => new(persistentIdentifier, prefKey, prefValue);
+        private static GamePrefData CreateGamePrefData(GamePrefData gamePrefData) => new (gamePrefData);
 
         private bool CanCreate()
         {

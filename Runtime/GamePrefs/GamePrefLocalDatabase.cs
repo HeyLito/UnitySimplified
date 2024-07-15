@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnitySimplified.RuntimeDatabases;
 using UnitySimplified.Serialization;
 using UnitySimplified.Serialization.Formatters;
@@ -11,21 +12,22 @@ namespace UnitySimplified.GamePrefs
     public class GamePrefLocalDatabase : RuntimeDatabase<GamePrefLocalDatabase>, IEnumerable<GamePrefData>
     {
         [SerializeField]
-        private List<string> _savedGamePrefs = new();
+        [FormerlySerializedAs("_savedGamePrefs")]
+        private List<string> savedGamePrefs = new();
         
         private Dictionary<string, GamePrefData> _gamePrefsByKeys;
         private Dictionary<string, GamePrefData> _gamePrefsByIdentifiers;
         private Dictionary<string, int> _indexesByIDs;
-        private readonly BinaryDataFormatter _binaryDataFormatter = new BinaryDataFormatter();
+        private readonly IDataFormatter _dataFormatter = new JsonDataFormatter();
         public event Action OnValuesChanged;
 
         internal void AddGamePrefData(GamePrefData data)
         {
-            DataManager.SaveObjectAsString(data, _binaryDataFormatter, out string dataAsString);
-            _savedGamePrefs.Add(dataAsString);
+            DataManager.SaveObjectAsString(data, _dataFormatter, out string dataAsString);
+            savedGamePrefs.Add(dataAsString);
             _gamePrefsByIdentifiers.Add(data.identifier, data);
             _gamePrefsByKeys.Add(data.key, data);
-            _indexesByIDs.Add(data.identifier, _savedGamePrefs.Count - 1);
+            _indexesByIDs.Add(data.identifier, savedGamePrefs.Count - 1);
             OnValuesChanged?.Invoke();
         }
         internal void OverwriteGamePref(GamePrefData data)
@@ -33,8 +35,8 @@ namespace UnitySimplified.GamePrefs
             if (!_indexesByIDs.TryGetValue(data.identifier, out int index))
                 return;
 
-            DataManager.SaveObjectAsString(data, _binaryDataFormatter, out string dataAsString);
-            _savedGamePrefs[index] = dataAsString;
+            DataManager.SaveObjectAsString(data, _dataFormatter, out string dataAsString);
+            savedGamePrefs[index] = dataAsString;
             _gamePrefsByIdentifiers[data.identifier] = data;
             _gamePrefsByKeys[data.key] = data;
             OnValuesChanged?.Invoke();
@@ -44,7 +46,7 @@ namespace UnitySimplified.GamePrefs
             if (_indexesByIDs.TryGetValue(id, out int index))
             {
                 string prefKey = _gamePrefsByIdentifiers[id].key;
-                _savedGamePrefs.RemoveAt(index);
+                savedGamePrefs.RemoveAt(index);
                 _gamePrefsByIdentifiers.Remove(id);
                 _gamePrefsByKeys.Remove(prefKey);
                 _indexesByIDs.Remove(id);
@@ -56,7 +58,7 @@ namespace UnitySimplified.GamePrefs
         }
         public void RemoveAll()
         {
-            _savedGamePrefs.Clear();
+            savedGamePrefs.Clear();
             _gamePrefsByIdentifiers.Clear();
             _gamePrefsByKeys.Clear();
             _indexesByIDs.Clear();
@@ -91,10 +93,10 @@ namespace UnitySimplified.GamePrefs
             _gamePrefsByIdentifiers = new Dictionary<string, GamePrefData>();
             _gamePrefsByKeys = new Dictionary<string, GamePrefData>();
             _indexesByIDs = new Dictionary<string, int>();
-            for (int i = 0; i < _savedGamePrefs.Count; i++)
+            for (int i = 0; i < savedGamePrefs.Count; i++)
             {
                 GamePrefData tempPref = new GamePrefData();
-                DataManager.LoadObjectFromString(tempPref, _binaryDataFormatter, _savedGamePrefs[i]);
+                DataManager.LoadObjectFromString(tempPref, _dataFormatter, savedGamePrefs[i]);
                 _gamePrefsByIdentifiers.Add(tempPref.identifier, tempPref);
                 _gamePrefsByKeys.Add(tempPref.key, tempPref);
                 _indexesByIDs.Add(tempPref.identifier, i);

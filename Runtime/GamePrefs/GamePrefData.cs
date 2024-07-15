@@ -1,21 +1,18 @@
 using System;
-using System.Runtime.CompilerServices;
-
-[assembly: InternalsVisibleTo("UnitySimplified.Editor")]
 
 namespace UnitySimplified.GamePrefs
 {
     [Serializable]
-    internal class GamePrefData
+    public class GamePrefData
     {
         public string identifier;
         public string key;
         public object value;
         public string valueTypeNamespace;
 
-        internal GamePrefData() { }
-        internal GamePrefData(GamePrefData data) : this(data.identifier, data.key, data.value) { }
-        internal GamePrefData(string identifier, string key, object value)
+        public GamePrefData() { }
+        public GamePrefData(GamePrefData data) : this(data.identifier, data.key, data.value) { }
+        public GamePrefData(string identifier, string key, object value)
         {
             this.identifier = identifier;
             this.key = key;
