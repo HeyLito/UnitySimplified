@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Linq;
 using System.Collections;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.Serialization;
 using UnitySimplified.Collections;
 using UnityObject = UnityEngine.Object;
 
+[assembly: InternalsVisibleTo("UnitySimplified.Editor")]
 namespace UnitySimplified.RuntimeDatabases
 {
     public class RuntimeAssetDatabase : RuntimeDatabase<RuntimeAssetDatabase>
