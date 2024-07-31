@@ -100,6 +100,9 @@ namespace UnitySimplified.GamePrefs
         }
         private static bool DoDeleteWithIdentifier(string identifier)
         {
+            if (!_loaded)
+                Reload();
+
             if (!_savedDataIdentifierLookup.Contains(identifier))
                 return false;
 
@@ -111,6 +114,9 @@ namespace UnitySimplified.GamePrefs
         }
         private static bool DoDeleteWithKey(string key)
         {
+            if (!_loaded)
+                Reload();
+
             if (!_savedDataKeyLookup.Contains(key))
                 return false;
 
@@ -123,11 +129,17 @@ namespace UnitySimplified.GamePrefs
 
         internal static bool DoTryGetGamePrefFromIdentifier(string identifier, out GamePrefData value)
         {
+            if (!_loaded)
+                Reload();
+
             value = _savedDataIdentifierLookup[identifier].FirstOrDefault();
             return value != null;
         }
         internal static bool DoTryGetGamePrefFromKey(string key, out GamePrefData value)
         {
+            if (!_loaded)
+                Reload();
+
             value = _savedDataKeyLookup[key].FirstOrDefault();
             return value != null;
         }
@@ -136,6 +148,9 @@ namespace UnitySimplified.GamePrefs
         {
             if (string.IsNullOrEmpty(identifier))
                 throw new ArgumentException($"Method parameter \'{nameof(identifier)}\' is empty.");
+
+            if (!_loaded)
+                Reload();
 
             GamePrefData data = _savedDataIdentifierLookup[identifier].FirstOrDefault();
             if (data == null)
@@ -153,6 +168,9 @@ namespace UnitySimplified.GamePrefs
             if (string.IsNullOrEmpty(key))
                 throw new ArgumentException($"Method parameter \'{nameof(identifier)}\' is empty.");
 
+            if (!_loaded)
+                Reload();
+
             GamePrefData data = _savedDataKeyLookup[key].FirstOrDefault();
             if (data == null)
                 GamePrefLocalDatabase.Instance.TryGetFromIdentifier(key, out data);
@@ -169,6 +187,9 @@ namespace UnitySimplified.GamePrefs
         {
             if (string.IsNullOrEmpty(identifier))
                 throw new ArgumentException($"Method parameter \'{nameof(identifier)}\' is empty.");
+
+            if (!_loaded)
+                Reload();
 
             GamePrefData data = _savedDataIdentifierLookup[identifier].FirstOrDefault();
             if (data != null)
@@ -201,10 +222,15 @@ namespace UnitySimplified.GamePrefs
             if (value is null)
                 return;
 
-            GamePrefData data = _savedDataIdentifierLookup[key].FirstOrDefault();
+            if (!_loaded)
+                Reload();
+
+
+            GamePrefData data = _savedDataKeyLookup[key].FirstOrDefault();
             if (data != null)
             {
-                data = data.GetValueType() != typeof(T) ? data : null;
+                if (data.IsValid() == false || !typeof(T).IsAssignableFrom(data.GetValueType()))
+                    data = null;
             }
             else
             {

@@ -26,12 +26,14 @@ namespace UnitySimplified.VariableReferences
 
         public TValue Value
         {
-            get => valueToggle || reference == null ? constant : reference.GetValue();
+            get => valueToggle ? constant : reference != null ? reference.GetValue() : default;
             set
             {
-                if (valueToggle || reference == null)
+                if (reference == null)
+                    valueToggle = true;
+                if (valueToggle)
                     constant = value;
-                else reference.SetValue(value);
+                else reference?.SetValue(value);
             }
         }
     }

@@ -16,7 +16,7 @@ namespace UnitySimplifiedEditor
         public ReorderableList GetList(SerializedProperty property, Func<ReorderableList> defaultList)
         {
             if (property == null)
-                throw new NullReferenceException($"Failed to get list, serialied property is NULL!");
+                throw new NullReferenceException($"Failed to get list, serialized property is NULL!");
 
             string propertyPath = GetPropertyPath(property);
             if (!_listsByProperties.TryGetValue(propertyPath, out var list) || !IsListValid(property, list))

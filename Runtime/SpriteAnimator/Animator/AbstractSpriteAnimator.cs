@@ -347,13 +347,16 @@ namespace UnitySimplified.SpriteAnimator
         private void NextAnimationFrame(ref int frame, SpriteAnimation animation)
         {
             frame++;
-            HandleAnimationFrameEvents(Mathf.Min(frame, Mathf.Max(0, animation.Frames.Length - 1)), animation);
-
-            if (frame < animation.Frames.Length)
-                return;
-            if (animation.Loop)
-                frame = 0;
-            else frame = animation.Frames.Length - 1;
+            if (frame > animation.Frames.Length - 1)
+            {
+                if (animation.Loop)
+                {
+                    frame = 0;
+                    HandleAnimationFrameEvents(frame, animation);
+                }
+                else frame = animation.Frames.Length - 1;
+            }
+            else HandleAnimationFrameEvents(frame, animation);
         }
         private IEnumerator AnimationStateSequence(AnimationState state, int startFrame)
         {
