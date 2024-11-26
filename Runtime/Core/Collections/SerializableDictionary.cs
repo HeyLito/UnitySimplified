@@ -98,16 +98,8 @@ namespace UnitySimplified.Collections
                 }
             }
         }
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            Debug.Log("Serialize");
-            _dictionary.GetObjectData(info, context);
-        }
-        public void OnDeserialization(object sender)
-        {
-            Debug.Log("Deserialize");
-            _dictionary.OnDeserialization(sender);
-        }
+        public void GetObjectData(SerializationInfo info, StreamingContext context) => _dictionary.GetObjectData(info, context);
+        public void OnDeserialization(object sender) => _dictionary.OnDeserialization(sender);
 
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator() => _dictionary.GetEnumerator();
         public void Clear() => _dictionary.Clear();

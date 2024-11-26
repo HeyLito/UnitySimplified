@@ -1,10 +1,8 @@
-#if UNITY_EDITOR
-
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 using UnityEditor;
 using UnityEditorInternal;
-using UnityEngine;
 
 namespace UnitySimplifiedEditor
 {
@@ -58,5 +56,3 @@ namespace UnitySimplifiedEditor
         }
     }
 }
-
-#endif

@@ -10,6 +10,7 @@ namespace UnitySimplified.Serialization
     {
         #region FIELDS
         public static bool debug = false;
+        public static bool autoCreateDatabaseDirectory = false;
         public static string persistentDirectoryPath = Application.persistentDataPath;
         public static string subDirectory = "User Data";
 
@@ -82,7 +83,7 @@ namespace UnitySimplified.Serialization
         /// </summary>
         private static void DoLoadDatabase()
         {
-            if (string.IsNullOrEmpty(TargetDataPath) || !Directory.Exists(TargetDataPath))
+            if (string.IsNullOrEmpty(TargetDataPath))
             {
                 Debug.LogWarning($"[DataManagerError, DatabaseDirectory] Path from {nameof(TargetDataPath)} returned \"{TargetDataPath}\", which is invalid.");
                 return;
@@ -106,7 +107,7 @@ namespace UnitySimplified.Serialization
 
             if (databaseModified)
             {
-                _databaseCache.OverwriteDatabase(database);
+                _databaseCache.SaveDatabase(database);
                 if (debug && missing.Count > 0)
                     Debug.Log($"[DataManagerMessage, DatabaseDirectory] Removed {missing.Count} missing file reference{(missing.Count > 0 ? "s" : "")}.");
             }
@@ -165,9 +166,14 @@ namespace UnitySimplified.Serialization
             string directoryPath = database.DirectoryPath;
             if (!Directory.Exists(directoryPath))
             {
-                if (debug)
-                    Debug.LogWarning($"[DataManagerError, FileCreation] Database path is is missing at path \"{directoryPath}\".");
-                return false;
+                if (autoCreateDatabaseDirectory)
+                    Directory.CreateDirectory(directoryPath);
+                else
+                {
+                    if (debug)
+                        Debug.LogWarning($"[DataManagerError, FileCreation] Database path is is missing at path \"{directoryPath}\".");
+                    return false;
+                }
             }
 
             if (!string.IsNullOrEmpty(fileSubPath))
@@ -180,7 +186,7 @@ namespace UnitySimplified.Serialization
             var databaseFile = new Database.File(fileIdentifier, fileName + fileFormatter.FileExtension, directoryPath, fileFormatter);
             databaseFile.Formatter.SerializeToFile(databaseFile.FullPath, obj);
             database.Add(databaseFile);
-            _databaseCache.OverwriteDatabase(database);
+            _databaseCache.SaveDatabase(database);
             if (debug)
                 Debug.Log($"[DataManagerMessage, FileCreation] Successfully created file under {nameof(fileIdentifier)}:\"{fileIdentifier}\" to path \"{databaseFile.FullPath}\".");
             return true;
@@ -286,7 +292,7 @@ namespace UnitySimplified.Serialization
                 {
                     File.Delete(databaseFile.FullPath);
                     database.Remove(databaseFile);
-                    _databaseCache.OverwriteDatabase(database);
+                    _databaseCache.SaveDatabase(database);
                     if (debug)
                         Debug.Log($"[DataManagerMessage, FileDeletion] Successfully removed {nameof(fileIdentifier)}:\"{fileIdentifier}\" and the file found at path \"{databaseFile.FullPath}\".");
                 }

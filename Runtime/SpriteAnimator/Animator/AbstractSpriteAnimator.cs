@@ -114,11 +114,21 @@ namespace UnitySimplified.SpriteAnimator
             }
             _current = (null, null, null);
         }
-        //public void Restart()
-        //{
-        //    //if (DoTransitionToNextAnimationState(GetAnimationStateEntry(), 0, 0, out AnimationState animationState))
-        //    //    DoPlayAnimation(animationState, 0);
-        //}
+        public void Restart()
+        {
+            Stop();
+            Play();
+        }
+        public void SlipPlay(SpriteAnimation animation)
+        {
+            if (animation == null)
+                throw new ArgumentNullException(nameof(animation));
+
+            if (TryGetAnimationState("_SlipPlay", out AnimationState animationState))
+                RemoveAnimationState(animationState);
+            var state = CreateAnimationState("_SlipPlay", animation);
+            ForcePlay(state);
+        }
         public void Play()
         {
             Initialize();
@@ -263,6 +273,8 @@ namespace UnitySimplified.SpriteAnimator
             _animationStatesByIdentifiers.Remove(state.Identifier);
             _orderedAnimationStates.Remove(state);
 
+            Stop();
+
             foreach (var transition in state.Transitions)
                 foreach (var condition in transition.Conditions)
                     onAnyAnimationConditionRemovedCallback?.Invoke(condition);
@@ -273,13 +285,13 @@ namespace UnitySimplified.SpriteAnimator
         {
             if (triggerReceiver != null)
             {
-                if (!string.IsNullOrEmpty(triggerReceiver.Identifier))
+                if (!string.IsNullOrEmpty(triggerReceiver.Key))
                 {
-                    if (!_triggerReceiversByIdentifiers.TryGetValue(triggerReceiver.Identifier, out var triggerReceivers))
-                        _triggerReceiversByIdentifiers[triggerReceiver.Identifier] = triggerReceivers = new HashSet<SpriteAnimation.EventTriggerReceiver>();
+                    if (!_triggerReceiversByIdentifiers.TryGetValue(triggerReceiver.Key, out var triggerReceivers))
+                        _triggerReceiversByIdentifiers[triggerReceiver.Key] = triggerReceivers = new HashSet<SpriteAnimation.EventTriggerReceiver>();
                     triggerReceivers.Add(triggerReceiver);
                 }
-                else throw new ArgumentException($"{nameof(triggerReceiver)}.{nameof(SpriteAnimation.EventTriggerReceiver.Identifier)} is null or empty.");
+                else throw new ArgumentException($"{nameof(triggerReceiver)}.{nameof(SpriteAnimation.EventTriggerReceiver.Key)} is null or empty.");
             }
             else throw new ArgumentNullException(nameof(triggerReceiver));
         }
@@ -287,13 +299,13 @@ namespace UnitySimplified.SpriteAnimator
         {
             if (triggerReceiver != null)
             {
-                if (_triggerReceiversByIdentifiers.TryGetValue(triggerReceiver.Identifier, out var triggerReceivers))
+                if (_triggerReceiversByIdentifiers.TryGetValue(triggerReceiver.Key, out var triggerReceivers))
                 {
                     triggerReceivers.Remove(triggerReceiver);
                     if (triggerReceivers.Count == 0)
-                        _triggerReceiversByIdentifiers.Remove(triggerReceiver.Identifier);
+                        _triggerReceiversByIdentifiers.Remove(triggerReceiver.Key);
                 }
-                else throw new ArgumentNullException($"Does not contain {nameof(SpriteAnimation.EventTriggerReceiver)} with an identifier of {triggerReceiver.Identifier}.");
+                else throw new ArgumentNullException($"Does not contain {nameof(SpriteAnimation.EventTriggerReceiver)} with an identifier of {triggerReceiver.Key}.");
             }
             else throw new ArgumentNullException(nameof(triggerReceiver));
         }
@@ -334,7 +346,7 @@ namespace UnitySimplified.SpriteAnimator
             {
                 foreach (var animationTrigger in animation.Triggers)
                     if (animationTrigger.Frame == frame)
-                        if (_triggerReceiversByIdentifiers.TryGetValue(animationTrigger.Identifier, out var eventTriggerReceivers))
+                        if (_triggerReceiversByIdentifiers.TryGetValue(animationTrigger.Key, out var eventTriggerReceivers))
                         {
                             foreach (var eventTriggerReceiver in eventTriggerReceivers)
                                 _tempEventTriggerReceivers.Enqueue(eventTriggerReceiver);

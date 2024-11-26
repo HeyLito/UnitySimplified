@@ -24,10 +24,16 @@ namespace UnitySimplified.Serialization
         }
         public static void OverwriteInstanceFromOther<T>(T fromInstance, T toInstance)
         {
-            if (!FieldInfoEntriesByTypes.TryGetValue(typeof(T), out IEnumerable<FieldInfo> fieldInfos))
+            if (fromInstance == null)
+                throw new ArgumentNullException(nameof(fromInstance));
+            if (toInstance == null)
+                throw new ArgumentNullException(nameof(toInstance));
+            var type = typeof(T);
+
+            if (!FieldInfoEntriesByTypes.TryGetValue(type, out IEnumerable<FieldInfo> fieldInfos))
             {
-                var flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.SetField;
-                FieldInfoEntriesByTypes[typeof(T)] = fieldInfos = typeof(T).GetFields(flags);
+                var flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                FieldInfoEntriesByTypes[type] = fieldInfos = type.GetFields(flags);
             }
 
             foreach (var fieldInfo in fieldInfos)

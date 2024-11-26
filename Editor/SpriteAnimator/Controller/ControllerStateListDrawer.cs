@@ -1,3 +1,5 @@
+#if UNITY_EDITOR
+
 using UnityEngine;
 using UnityEditor;
 using UnityEditorInternal;
@@ -83,3 +85,5 @@ namespace UnitySimplifiedEditor.SpriteAnimator.Controller
         }
     }
 }
+
+#endif

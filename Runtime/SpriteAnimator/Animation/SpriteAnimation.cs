@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Serialization;
+using UnitySimplified.VariableReferences;
 
 namespace UnitySimplified.SpriteAnimator
 {
@@ -36,27 +37,28 @@ namespace UnitySimplified.SpriteAnimator
             private int frame;
             [SerializeField]
             [FormerlySerializedAs("_identifier")]
-            private string identifier;
+            [FormerlySerializedAs("identifier")]
+            private KeywordReference key;
 
             public EventTrigger() { }
-            public EventTrigger(int frame, string identifier) : this()
+            public EventTrigger(int frame, KeywordReference key) : this()
             {
                 this.frame = frame;
-                this.identifier = identifier;
+                this.key = key;
             }
 
             public int Frame => frame;
-            public string Identifier => identifier;
+            public string Key => key;
         }
         public class EventTriggerReceiver
         {
-            public EventTriggerReceiver(string identifier, Action callback)
+            public EventTriggerReceiver(KeywordReference key, Action callback)
             {
-                Identifier = identifier;
+                Key = key;
                 Callback = callback;
             }
 
-            public string Identifier { get; }
+            public KeywordReference Key { get; }
             public Action Callback { get; }
         }
     }

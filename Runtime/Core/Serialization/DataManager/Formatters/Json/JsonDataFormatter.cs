@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 #if ENABLE_UNITYSIMPLIFIED_NEWTONSOFT
 using Newtonsoft.Json;
