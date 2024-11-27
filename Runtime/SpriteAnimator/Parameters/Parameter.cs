@@ -67,8 +67,8 @@ namespace UnitySimplified.SpriteAnimator.Parameters
             _rhsValue = rhsValue;
         }
 
-        protected T GetValue() => _lhsValue;
-        protected void SetValue(T value) => _lhsValue = value;
+        public T GetValue() => _lhsValue;
+        public void SetValue(T value) => _lhsValue = value;
         protected virtual T DefaultLhsValue() => default;
         protected virtual T DefaultRhsValue() => default;
     }
