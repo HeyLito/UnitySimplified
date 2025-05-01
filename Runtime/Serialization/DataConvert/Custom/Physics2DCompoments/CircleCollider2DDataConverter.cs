@@ -17,9 +17,14 @@ namespace UnitySimplified.Serialization
             output[nameof(CircleCollider2D.density)] = obj.density;
             output[nameof(CircleCollider2D.isTrigger)] = obj.isTrigger;
             output[nameof(CircleCollider2D.usedByEffector)] = obj.usedByEffector;
-            output[nameof(CircleCollider2D.usedByComposite)] = obj.usedByComposite;
             output[nameof(CircleCollider2D.offset)] = obj.offset;
             output[nameof(CircleCollider2D.radius)] = obj.radius;
+
+#if UNITY_6000_0_OR_NEWER
+            output[nameof(CircleCollider2D.compositeOperation)] = obj.compositeOperation;
+#else
+            output[nameof(CircleCollider2D.usedByComposite)] = obj.usedByComposite;
+#endif
 
             DataConvertUtility.TrySerializeFieldAsset(nameof(CircleCollider2D.sharedMaterial), obj.sharedMaterial, output);
         }
@@ -35,12 +40,18 @@ namespace UnitySimplified.Serialization
                 obj.isTrigger = (bool)isTrigger;
             if (input.TryGetValue(nameof(CircleCollider2D.usedByEffector), out object usedByEffector))
                 obj.usedByEffector = (bool)usedByEffector;
-            if (input.TryGetValue(nameof(CircleCollider2D.usedByComposite), out object usedByComposite))
-                obj.usedByComposite = (bool)usedByComposite;
             if (input.TryGetValue(nameof(CircleCollider2D.offset), out object offset))
                 obj.offset = (Vector2)offset;
             if (input.TryGetValue(nameof(CircleCollider2D.radius), out object radius))
                 obj.radius = (float)radius;
+
+#if UNITY_6000_0_OR_NEWER
+            if (input.TryGetValue(nameof(CircleCollider2D.compositeOperation), out object compositeOperation))
+                obj.compositeOperation = (Collider2D.CompositeOperation)compositeOperation;
+#else
+            if (input.TryGetValue(nameof(CircleCollider2D.usedByComposite), out object usedByComposite))
+                obj.usedByComposite = (bool)usedByComposite;
+#endif
 
             if (DataConvertUtility.TryDeserializeFieldAsset(nameof(CircleCollider2D.sharedMaterial), out object sharedMaterial, input))
                 obj.sharedMaterial = (PhysicsMaterial2D)sharedMaterial;

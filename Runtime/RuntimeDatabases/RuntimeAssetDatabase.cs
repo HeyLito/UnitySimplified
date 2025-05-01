@@ -36,14 +36,17 @@ namespace UnitySimplified.RuntimeDatabases
         {
             typeof(Mesh),
             typeof(AudioClip),
+            typeof(AnimationClip),
             typeof(Material),
-            typeof(PhysicMaterial),
-            typeof(PhysicsMaterial2D),
             typeof(Flare),
-            typeof(GUIStyle),
             typeof(Texture),
             typeof(RuntimeAnimatorController),
-            typeof(AnimationClip)
+            typeof(PhysicsMaterial2D),
+#if UNITY_6000_0_OR_NEWER
+            typeof(PhysicsMaterial),
+#else
+            typeof(PhysicMaterial),
+#endif
         };
 
 

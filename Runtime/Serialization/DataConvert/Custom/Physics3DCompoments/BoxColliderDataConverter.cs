@@ -37,7 +37,11 @@ namespace UnitySimplified.Serialization
                 obj.contactOffset = (float)contactOffset;
 
             if (DataConvertUtility.TryDeserializeFieldAsset(nameof(BoxCollider.sharedMaterial), out object sharedMaterial, input))
+#if UNITY_6000_0_OR_NEWER
+                obj.sharedMaterial = (PhysicsMaterial)sharedMaterial;
+#else
                 obj.sharedMaterial = (PhysicMaterial)sharedMaterial;
+#endif
 
             return obj;
         }

@@ -18,22 +18,30 @@ namespace UnitySimplified.Serialization
             output[nameof(Rigidbody2D.simulated)] = obj.simulated;
             output[nameof(Rigidbody2D.useAutoMass)] = obj.useAutoMass;
             output[nameof(Rigidbody2D.mass)] = obj.mass;
-            output[nameof(Rigidbody2D.drag)] = obj.drag;
             output[nameof(Rigidbody2D.gravityScale)] = obj.gravityScale;
             output[nameof(Rigidbody2D.collisionDetectionMode)] = (int)obj.collisionDetectionMode;
             output[nameof(Rigidbody2D.sleepMode)] = (int)obj.sleepMode;
             output[nameof(Rigidbody2D.interpolation)] = (int)obj.interpolation;
             output[nameof(Rigidbody2D.constraints)] = (int)obj.constraints;
 
-            DataConvertUtility.TrySerializeFieldAsset(nameof(Rigidbody2D.sharedMaterial), obj.sharedMaterial, output);
-
             output[nameof(Rigidbody2D.position)] = obj.position;
             output[nameof(Rigidbody2D.rotation)] = obj.rotation;
-            output[nameof(Rigidbody2D.velocity)] = obj.velocity;
             output[nameof(Rigidbody2D.angularVelocity)] = obj.angularVelocity;
             output[nameof(Rigidbody2D.inertia)] = obj.inertia;
             output[nameof(Rigidbody2D.centerOfMass)] = obj.centerOfMass;
             output[nameof(Rigidbody2D.IsSleeping)] = obj.IsSleeping();
+
+#if UNITY_6000_0_OR_NEWER
+            output[nameof(Rigidbody2D.linearDamping)] = obj.linearDamping;
+            output[nameof(Rigidbody2D.linearVelocity)] = obj.linearVelocity;
+            output[nameof(Rigidbody2D.angularDamping)] = obj.angularDamping;
+#else
+            output[nameof(Rigidbody2D.drag)] = obj.drag;
+            output[nameof(Rigidbody2D.velocity)] = obj.velocity;
+            output[nameof(Rigidbody2D.angularDrag)] = obj.angularDrag;
+#endif
+
+            DataConvertUtility.TrySerializeFieldAsset(nameof(Rigidbody2D.sharedMaterial), obj.sharedMaterial, output);
         }
         object IDataConverter.Deserialize(Type valueType, object existingValue, IDictionary<string, object> input)
         {
@@ -49,8 +57,6 @@ namespace UnitySimplified.Serialization
                 obj.useAutoMass = (bool)useAutoMass;
             if (input.TryGetValue(nameof(Rigidbody2D.mass), out object mass))
                 obj.mass = (float)mass;
-            if (input.TryGetValue(nameof(Rigidbody2D.drag), out object drag))
-                obj.drag = (float)drag;
             if (input.TryGetValue(nameof(Rigidbody2D.gravityScale), out object gravityScale))
                 obj.gravityScale = (float)gravityScale;
             if (input.TryGetValue(nameof(Rigidbody2D.collisionDetectionMode), out object collisionDetectionMode))
@@ -62,15 +68,11 @@ namespace UnitySimplified.Serialization
             if (input.TryGetValue(nameof(Rigidbody2D.constraints), out object constraints))
                 obj.constraints = (RigidbodyConstraints2D)constraints;
 
-            if (DataConvertUtility.TryDeserializeFieldAsset(nameof(Rigidbody2D.sharedMaterial), out object sharedMaterial, input))
-                obj.sharedMaterial = (PhysicsMaterial2D)sharedMaterial;
 
             if (input.TryGetValue(nameof(Rigidbody2D.position), out object position))
                 obj.position = (Vector2)position;
             if (input.TryGetValue(nameof(Rigidbody2D.rotation), out object rotation))
                 obj.rotation = (float)rotation;
-            if (input.TryGetValue(nameof(Rigidbody2D.velocity), out object velocity))
-                obj.velocity = (Vector2)velocity;
             if (input.TryGetValue(nameof(Rigidbody2D.angularVelocity), out object angularVelocity))
                 obj.angularVelocity = (float)angularVelocity;
             if (input.TryGetValue(nameof(Rigidbody2D.inertia), out object inertia))
@@ -81,6 +83,25 @@ namespace UnitySimplified.Serialization
                 if ((bool)sleepState)
                     obj.Sleep();
                 else obj.WakeUp();
+
+#if UNITY_6000_0_OR_NEWER
+            if (input.TryGetValue(nameof(Rigidbody2D.linearDamping), out object damping))
+                obj.linearDamping = (float)damping;
+            if (input.TryGetValue(nameof(Rigidbody2D.linearVelocity), out object linearVelocity))
+                obj.linearVelocity = (Vector2)linearVelocity;
+            if (input.TryGetValue(nameof(Rigidbody2D.angularDamping), out object angularDamping))
+                obj.angularDamping = (float)angularDamping;
+#else
+            if (input.TryGetValue(nameof(Rigidbody2D.drag), out object drag))
+                obj.drag = (float)drag;
+            if (input.TryGetValue(nameof(Rigidbody2D.velocity), out object velocity))
+                obj.velocity = (Vector2)velocity;
+            if (input.TryGetValue(nameof(Rigidbody2D.angularDrag), out object angularDrag))
+                obj.angularDrag = (float)angularDrag;
+#endif
+
+            if (DataConvertUtility.TryDeserializeFieldAsset(nameof(Rigidbody2D.sharedMaterial), out object sharedMaterial, input))
+                obj.sharedMaterial = (PhysicsMaterial2D)sharedMaterial;
 
             return obj;
         }

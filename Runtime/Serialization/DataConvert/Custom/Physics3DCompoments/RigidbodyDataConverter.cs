@@ -15,8 +15,6 @@ namespace UnitySimplified.Serialization
                 return;
 
             output[nameof(Rigidbody.mass)] = obj.mass;
-            output[nameof(Rigidbody.drag)] = obj.drag;
-            output[nameof(Rigidbody.angularDrag)] = obj.angularDrag;
             output[nameof(Rigidbody.useGravity)] = obj.useGravity;
             output[nameof(Rigidbody.isKinematic)] = obj.isKinematic;
             output[nameof(Rigidbody.interpolation)] = (int)obj.interpolation;
@@ -26,7 +24,6 @@ namespace UnitySimplified.Serialization
             output[nameof(Rigidbody.position)] = obj.position;
             output[nameof(Rigidbody.rotation)] = obj.rotation;
             output[nameof(Rigidbody.centerOfMass)] = obj.centerOfMass;
-            output[nameof(Rigidbody.velocity)] = obj.velocity;
             output[nameof(Rigidbody.angularVelocity)] = obj.angularVelocity;
             output[nameof(Rigidbody.maxAngularVelocity)] = obj.maxAngularVelocity;
             output[nameof(Rigidbody.maxDepenetrationVelocity)] = obj.maxDepenetrationVelocity;
@@ -38,6 +35,16 @@ namespace UnitySimplified.Serialization
             output[nameof(Rigidbody.solverIterations)] = obj.solverIterations;
             output[nameof(Rigidbody.solverVelocityIterations)] = obj.solverVelocityIterations;
             output[nameof(Rigidbody.IsSleeping)] = obj.IsSleeping();
+
+#if UNITY_6000_0_OR_NEWER
+            output[nameof(Rigidbody.linearDamping)] = obj.linearDamping;
+            output[nameof(Rigidbody.linearVelocity)] = obj.linearVelocity;
+            output[nameof(Rigidbody.angularDamping)] = obj.angularDamping;
+#else
+            output[nameof(Rigidbody.drag)] = obj.drag;
+            output[nameof(Rigidbody.velocity)] = obj.velocity;
+            output[nameof(Rigidbody.angularDrag)] = obj.angularDrag;
+#endif
         }
         object IDataConverter.Deserialize(Type valueType, object existingValue, IDictionary<string, object> input)
         {
@@ -47,10 +54,6 @@ namespace UnitySimplified.Serialization
 
             if (input.TryGetValue(nameof(Rigidbody.mass), out object mass))
                 obj.mass = (float)mass;
-            if (input.TryGetValue(nameof(Rigidbody.drag), out object drag))
-                obj.drag = (float)drag;
-            if (input.TryGetValue(nameof(Rigidbody.angularDrag), out object angularDrag))
-                obj.angularDrag = (float)angularDrag;
             if (input.TryGetValue(nameof(Rigidbody.useGravity), out object useGravity))
                 obj.useGravity = (bool)useGravity;
             if (input.TryGetValue(nameof(Rigidbody.isKinematic), out object isKinematic))
@@ -68,8 +71,6 @@ namespace UnitySimplified.Serialization
                 obj.rotation = (Quaternion)rotation;
             if (input.TryGetValue(nameof(Rigidbody.centerOfMass), out object centerOfMass))
                 obj.centerOfMass = (Vector3)centerOfMass;
-            if (input.TryGetValue(nameof(Rigidbody.velocity), out object velocity))
-                obj.velocity = (Vector3)velocity;
             if (input.TryGetValue(nameof(Rigidbody.angularVelocity), out object angularVelocity))
                 obj.angularVelocity = (Vector3)angularVelocity;
             if (input.TryGetValue(nameof(Rigidbody.maxAngularVelocity), out object maxAngularVelocity))
@@ -94,6 +95,22 @@ namespace UnitySimplified.Serialization
                 if ((bool)sleepState)
                     obj.Sleep();
                 else obj.WakeUp();
+
+#if UNITY_6000_0_OR_NEWER
+            if (input.TryGetValue(nameof(Rigidbody.linearDamping), out object damping))
+                obj.linearDamping = (float)damping;
+            if (input.TryGetValue(nameof(Rigidbody.linearVelocity), out object linearVelocity))
+                obj.linearVelocity = (Vector3)linearVelocity;
+            if (input.TryGetValue(nameof(Rigidbody.angularDamping), out object angularDamping))
+                obj.angularDamping = (float)angularDamping;
+#else
+            if (input.TryGetValue(nameof(Rigidbody2D.drag), out object drag))
+                obj.drag = (float)drag;
+            if (input.TryGetValue(nameof(Rigidbody2D.velocity), out object velocity))
+                obj.velocity = (Vector2)velocity;
+            if (input.TryGetValue(nameof(Rigidbody2D.angularDrag), out object angularDrag))
+                obj.angularDrag = (float)angularDrag;
+#endif
 
             return obj;
         }

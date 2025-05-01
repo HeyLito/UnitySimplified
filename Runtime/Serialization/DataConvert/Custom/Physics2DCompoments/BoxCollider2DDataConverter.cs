@@ -17,11 +17,16 @@ namespace UnitySimplified.Serialization
             output[nameof(BoxCollider2D.density)] = obj.density;
             output[nameof(BoxCollider2D.isTrigger)] = obj.isTrigger;
             output[nameof(BoxCollider2D.usedByEffector)] = obj.usedByEffector;
-            output[nameof(BoxCollider2D.usedByComposite)] = obj.usedByComposite;
             output[nameof(BoxCollider2D.autoTiling)] = obj.autoTiling;
             output[nameof(BoxCollider2D.offset)] = obj.offset;
             output[nameof(BoxCollider2D.size)] = obj.size;
             output[nameof(BoxCollider2D.edgeRadius)] = obj.edgeRadius;
+
+#if UNITY_6000_0_OR_NEWER
+            output[nameof(BoxCollider2D.compositeOperation)] = obj.compositeOperation;
+#else
+            output[nameof(BoxCollider2D.usedByComposite)] = obj.usedByComposite;
+#endif
 
             DataConvertUtility.TrySerializeFieldAsset(nameof(BoxCollider2D.sharedMaterial), obj.sharedMaterial, output);
         }
@@ -37,8 +42,6 @@ namespace UnitySimplified.Serialization
                 obj.isTrigger = (bool)isTrigger;
             if (input.TryGetValue(nameof(BoxCollider2D.usedByEffector), out object usedByEffector))
                 obj.usedByEffector = (bool)usedByEffector;
-            if (input.TryGetValue(nameof(BoxCollider2D.usedByComposite), out object usedByComposite))
-                obj.usedByComposite = (bool)usedByComposite;
             if (input.TryGetValue(nameof(BoxCollider2D.autoTiling), out object autoTiling))
                 obj.autoTiling = (bool)autoTiling;
             if (input.TryGetValue(nameof(BoxCollider2D.offset), out object offset))
@@ -47,6 +50,14 @@ namespace UnitySimplified.Serialization
                 obj.size = (Vector2)size;
             if (input.TryGetValue(nameof(BoxCollider2D.edgeRadius), out object edgeRadius))
                 obj.edgeRadius = (float)edgeRadius;
+
+#if UNITY_6000_0_OR_NEWER
+            if (input.TryGetValue(nameof(BoxCollider2D.compositeOperation), out object compositeOperation))
+                obj.compositeOperation = (Collider2D.CompositeOperation)compositeOperation;
+#else
+            if (input.TryGetValue(nameof(BoxCollider2D.usedByComposite), out object usedByComposite))
+                obj.usedByComposite = (bool)usedByComposite;
+#endif
 
             if (DataConvertUtility.TryDeserializeFieldAsset(nameof(BoxCollider2D.sharedMaterial), out object sharedMaterial, input))
                 obj.sharedMaterial = (PhysicsMaterial2D)sharedMaterial;
