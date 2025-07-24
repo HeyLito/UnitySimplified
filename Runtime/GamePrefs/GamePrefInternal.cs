@@ -67,11 +67,8 @@ namespace UnitySimplified.GamePrefs
             _savedDataIdentifierLookup = null;
             _savedDataKeyLookup = null;
 
-            string previousPath = DataManager.TargetDataPath;
-            DataManager.TargetDataPath = DataManager.DefaultPath;
-            DataManager.LoadDatabase();
-            DataManager.LoadFromFile("GamePrefs", _savedData);
-            DataManager.TargetDataPath = previousPath;
+            var fileDatabase = FileDatabase.GetDatabase(DataManager.DefaultPath);
+            fileDatabase.LoadFromFile("GamePrefs", _savedData);
 
             _savedDataIdentifierLookup = _savedData.ToLookup(x => x.identifier);
             _savedDataKeyLookup = _savedData.ToLookup(x => x.key);
@@ -81,14 +78,18 @@ namespace UnitySimplified.GamePrefs
 
         private static void DoOverwrite()
         {
-            string previousPath = DataManager.TargetDataPath;
-            DataManager.TargetDataPath = DataManager.DefaultPath;
-            DataManager.LoadDatabase();
-            if (!DataManager.SaveToFile("GamePrefs", _savedData))
-                DataManager.CreateNewFile("GamePrefs", "GamePrefs", new JsonDataFormatter(), _savedData);
-            DataManager.TargetDataPath = previousPath;
-            DataManager.LoadDatabase();
-
+            string key = "GamePrefs";
+            FileDatabase fileDatabase = FileDatabase.GetDatabase(DataManager.DefaultPath);
+            if (!fileDatabase.SaveToFile("GamePrefs", _savedData))
+            {
+                //Find an solution for when newtonsoft is enabled after having existing saved data using the Binary data formatter.
+#if ENABLE_UNITYSIMPLIFIED_NEWTONSOFT
+                fileDatabase.CreateNewFile(new JsonDataFormatter(), _savedData, key, key);
+#else
+                fileDatabase.CreateNewFile(new BinaryDataFormatter(), _savedData, key, key);
+#endif
+                fileDatabase.SaveDatabase();
+            }
             OnValuesChanged?.Invoke();
         }
 
@@ -140,6 +141,11 @@ namespace UnitySimplified.GamePrefs
             if (!_loaded)
                 Reload();
 
+            if (_savedDataKeyLookup == null)
+            {
+                value = null;
+                return false;
+            }
             value = _savedDataKeyLookup[key].FirstOrDefault();
             return value != null;
         }
@@ -155,7 +161,6 @@ namespace UnitySimplified.GamePrefs
             GamePrefData data = _savedDataIdentifierLookup[identifier].FirstOrDefault();
             if (data == null)
                 GamePrefLocalDatabase.Instance.TryGetFromIdentifier(identifier, out data);
-
             if (data != null && data.IsValid() && typeof(T).IsAssignableFrom(data.GetValueType()))
             {
                 data.OnGet();
@@ -252,7 +257,7 @@ namespace UnitySimplified.GamePrefs
         {
             string identifier;
             do identifier = Guid.NewGuid().ToString();
-            while (_savedDataIdentifierLookup.Contains(identifier));
+            while (_savedDataIdentifierLookup != null && _savedDataIdentifierLookup.Contains(identifier));
             return new GamePref(identifier);
         }
     }

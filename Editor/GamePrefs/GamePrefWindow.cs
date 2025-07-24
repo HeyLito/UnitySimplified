@@ -230,7 +230,7 @@ namespace UnitySimplifiedEditor.GamePrefs
 
                 if (gamePrefType == GamePrefType.Local)
                 {
-                    object defaultValue = EditorGUILayoutExtended.ObjectField(new GUIContent("Default Value"), data.value, data.value.GetType());
+                    object defaultValue = EditorGUILayoutExtended.ObjectField(new GUIContent("Default Value"), data.value, data.GetValueType());
                     if (!data.value.Equals(defaultValue))
                     {
                         data.value = defaultValue;
@@ -240,7 +240,7 @@ namespace UnitySimplifiedEditor.GamePrefs
                 }
                 if (gamePrefType.HasFlag(GamePrefType.Persistent))
                 {
-                    object value = EditorGUILayoutExtended.ObjectField(new GUIContent("Value"), data.value, data.value.GetType());
+                    object value = EditorGUILayoutExtended.ObjectField(new GUIContent("Value"), data.value, data.GetValueType());
                     if (!data.value.Equals(value))
                     {
                         data.value = value;

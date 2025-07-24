@@ -1,13 +1,21 @@
 using System;
+using System.Runtime.Serialization;
+using System.Xml.Serialization;
 
 namespace UnitySimplified.GamePrefs
 {
     [Serializable]
+    [XmlRoot(Namespace = "")]
+    [DataContract(Namespace = "")]
     public class GamePrefData
     {
+        [DataMember(Name = nameof(identifier), IsRequired = true)]
         public string identifier;
+        [DataMember(Name = nameof(key), IsRequired = true)]
         public string key;
+        [DataMember(Name = nameof(value), IsRequired = true)]
         public object value;
+        [DataMember(Name = nameof(valueTypeNamespace), IsRequired = true)]
         public string valueTypeNamespace;
 
         public GamePrefData() { }
@@ -21,7 +29,7 @@ namespace UnitySimplified.GamePrefs
         }
 
         public bool IsValid() => !string.IsNullOrEmpty(identifier) && !string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(valueTypeNamespace) && value is not null;
-        public Type GetValueType() => IsValid() ? Type.GetType(valueTypeNamespace) : null;
+        public Type GetValueType() => Type.GetType(valueTypeNamespace);
         public void OnGet()
         {
             if (!IsValid())
