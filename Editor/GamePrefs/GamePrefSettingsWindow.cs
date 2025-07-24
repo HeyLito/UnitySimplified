@@ -30,7 +30,6 @@ namespace UnitySimplifiedEditor.GamePrefs
 
         private void OnEnable()
         {
-            UnityEngine.Debug.Log("GamePrefs");
             if (!FileDatabase.TryGetDatabase(DataManager.DefaultPath, out FileDatabase fileDatabase))
             {
                 fileDatabase = new FileDatabase(DataManager.DefaultPath);
