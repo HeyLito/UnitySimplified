@@ -1,7 +1,7 @@
 using System.Runtime.Serialization;
 using UnityEngine;
 
-namespace UnitySimplified
+namespace UnitySimplified.Serialization
 {
 	public sealed class Vector3Surrogate : ISerializationSurrogate
 	{

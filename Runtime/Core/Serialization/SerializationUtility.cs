@@ -1,18 +1,18 @@
 using System;
 using System.Reflection;
 using System.Collections.Generic;
+using UnityEngine;
 using System.Runtime.Serialization;
 
 namespace UnitySimplified.Serialization
 {
-    public static class DataManagerUtility
+    public class SerializationUtility : MonoBehaviour
     {
-        private static readonly Dictionary<Type, IEnumerable<FieldInfo>> FieldInfoEntriesByTypes = new();
         private static SurrogateSelector _surrogateSelector;
 
-        public static SurrogateSelector SurrogateSelector  => _surrogateSelector ??= new SurrogateSelector();
+        private static readonly Dictionary<Type, IEnumerable<FieldInfo>> FieldInfoEntriesByTypes = new();
 
-
+        public static SurrogateSelector SurrogateSelector => _surrogateSelector ??= CreateSurrogateSelector();
 
         public static bool IsSerializable(Type type)
         {
@@ -22,6 +22,7 @@ namespace UnitySimplified.Serialization
                 return true;
             return false;
         }
+
         public static void OverwriteInstanceFromOther<T>(T fromInstance, T toInstance)
         {
             if (fromInstance == null)
@@ -43,6 +44,17 @@ namespace UnitySimplified.Serialization
                     continue;
                 fieldInfo.SetValue(toInstance, value);
             }
+        }
+
+        private static SurrogateSelector CreateSurrogateSelector()
+        {
+            var selector = new SurrogateSelector();
+            selector.AddSurrogate(typeof(Vector2), default, new Vector2Surrogate());
+            selector.AddSurrogate(typeof(Vector3), default, new Vector3Surrogate());
+            selector.AddSurrogate(typeof(Vector4), default, new Vector4Surrogate());
+            selector.AddSurrogate(typeof(Quaternion), default, new QuaternionSurrogate());
+            selector.AddSurrogate(typeof(Color), default, new ColorSurrogate());
+            return selector;
         }
     }
 }

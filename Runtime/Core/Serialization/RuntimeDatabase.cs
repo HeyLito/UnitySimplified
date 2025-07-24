@@ -3,6 +3,7 @@ using System.Reflection;
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
+using UnitySimplifiedEditor;
 #endif
 
 namespace UnitySimplified.RuntimeDatabases
@@ -11,7 +12,9 @@ namespace UnitySimplified.RuntimeDatabases
     {
 #if UNITY_EDITOR
         [InitializeOnLoadMethod]
-        private static void InitializeDatabase()
+        private static void InitializeDatabase() => AssetPostprocessorCallbackHandler.AddCallback(AssetPostProcessor);
+
+        private static void AssetPostProcessor(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)
         {
             string keyName = $"HasInitialized.{nameof(RuntimeDatabase)}";
             if (SessionState.GetBool(keyName, false))
@@ -21,21 +24,21 @@ namespace UnitySimplified.RuntimeDatabases
             foreach (var assembly in ApplicationUtility.GetAssemblies())
                 foreach (var type in ApplicationUtility.GetTypesFromAssembly(assembly))
                 {
-                    if (!IsSubclassOfRawGeneric(typeof(RuntimeDatabase<>), type) || type == typeof(RuntimeDatabase<>))
+                    if (!IsSubclassOfGeneric(typeof(RuntimeDatabase<>), type) || type == typeof(RuntimeDatabase<>))
                         continue;
                     var propertyField = type.GetProperty($"Instance", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
                     propertyField?.GetValue(null);
                 }
         }
 
-        private static bool IsSubclassOfRawGeneric(Type generic, Type toCheck)
+        private static bool IsSubclassOfGeneric(Type genericType, Type typeToCheck)
         {
-            while (toCheck != null && toCheck != typeof(object))
+            while (typeToCheck != null && typeToCheck != typeof(object))
             {
-                var cur = toCheck.IsGenericType ? toCheck.GetGenericTypeDefinition() : toCheck;
-                if (generic == cur)
+                var cur = typeToCheck.IsGenericType ? typeToCheck.GetGenericTypeDefinition() : typeToCheck;
+                if (genericType == cur)
                     return true;
-                toCheck = toCheck.BaseType;
+                typeToCheck = typeToCheck.BaseType;
             }
             return false;
         }
