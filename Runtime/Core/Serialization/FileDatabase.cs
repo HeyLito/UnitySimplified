@@ -85,6 +85,13 @@ namespace UnitySimplified.Serialization
         }
         public void SaveDatabase()
         {
+            if (OpenedDatabases.TryGetValue(FullPath, out FileDatabase openedFileDatabase))
+            {
+                if (openedFileDatabase != this)
+                    throw new Exception("Contains");
+            }
+            else OpenedDatabases[FullPath] = this;
+
             if (!HasData)
             {
                 if (!System.IO.Directory.Exists(Directory))

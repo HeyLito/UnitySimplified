@@ -14,7 +14,6 @@ namespace UnitySimplified.GamePrefs
         private static ILookup<string, GamePrefData> _savedDataIdentifierLookup;
         private static ILookup<string, GamePrefData> _savedDataKeyLookup;
         private static bool _loaded;
-        private static FileDatabase _fileDatabase;
 
 
 
@@ -68,9 +67,12 @@ namespace UnitySimplified.GamePrefs
             _savedDataIdentifierLookup = null;
             _savedDataKeyLookup = null;
 
-            if (!FileDatabase.TryGetDatabase(DataManager.DefaultPath, out _fileDatabase))
-                _fileDatabase = new FileDatabase(DataManager.DefaultPath);
-            _fileDatabase.LoadFromFile("GamePrefs", _savedData);
+            if (!FileDatabase.TryGetDatabase(DataManager.DefaultPath, out FileDatabase fileDatabase))
+            {
+                fileDatabase = new FileDatabase(DataManager.DefaultPath);
+                fileDatabase.SaveDatabase();
+            }
+            fileDatabase.LoadFromFile("GamePrefs", _savedData);
 
             _savedDataIdentifierLookup = _savedData.ToLookup(x => x.identifier);
             _savedDataKeyLookup = _savedData.ToLookup(x => x.key);
@@ -81,15 +83,16 @@ namespace UnitySimplified.GamePrefs
         private static void DoOverwrite()
         {
             string key = "GamePrefs";
-            if (!_fileDatabase.SaveToFile("GamePrefs", _savedData))
+            FileDatabase fileDatabase = FileDatabase.GetDatabase(DataManager.DefaultPath);
+            if (!fileDatabase.SaveToFile("GamePrefs", _savedData))
             {
                 //Find an solution for when newtonsoft is enabled after having existing saved data using the Binary data formatter.
 #if ENABLE_UNITYSIMPLIFIED_NEWTONSOFT
-                _fileDatabase.CreateNewFile(new JsonDataFormatter(), _savedData, key, key);
+                fileDatabase.CreateNewFile(new JsonDataFormatter(), _savedData, key, key);
 #else
-                _fileDatabase.CreateNewFile(new BinaryDataFormatter(), _savedData, key, key);
+                fileDatabase.CreateNewFile(new BinaryDataFormatter(), _savedData, key, key);
 #endif
-                _fileDatabase.SaveDatabase();
+                fileDatabase.SaveDatabase();
             }
             OnValuesChanged?.Invoke();
         }

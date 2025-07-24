@@ -30,7 +30,12 @@ namespace UnitySimplifiedEditor.GamePrefs
 
         private void OnEnable()
         {
-            var fileDatabase = FileDatabase.GetDatabase(DataManager.DefaultPath);
+            UnityEngine.Debug.Log("GamePrefs");
+            if (!FileDatabase.TryGetDatabase(DataManager.DefaultPath, out FileDatabase fileDatabase))
+            {
+                fileDatabase = new FileDatabase(DataManager.DefaultPath);
+                fileDatabase.SaveDatabase();
+            }
             fileDatabase.ContainsFile("GamePrefs", out string _, out string filePath, out _);
             _persistentPath = filePath;
 
@@ -82,7 +87,7 @@ namespace UnitySimplifiedEditor.GamePrefs
                 var persistentPrefsStyle = persistentPrefsHasPath ? linkLabel : EditorStyles.label;
                 if (GUILayout.Button(persistentPrefsName, persistentPrefsStyle, GUILayout.Width(EditorGUIUtility.labelWidth)))
                 {
-                    if (Event.current.type == EventType.Used)
+                    if (persistentPrefsHasPath && Event.current.type == EventType.Used)
                     {
                         var directory = new FileInfo(_persistentPath).Directory?.FullName;
                         if (directory != null)
