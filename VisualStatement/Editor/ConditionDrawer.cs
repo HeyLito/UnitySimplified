@@ -121,7 +121,7 @@ namespace UnitySimplifiedEditor
             {
                 otherProp.serializedObject.ApplyModifiedProperties();
                 otherProp.serializedObject.Update();
-                otherOperand.Intialize(null, targetOperand.ValueType);
+                otherOperand.Initialize(null, targetOperand.ValueType);
                 EditorUtility.SetDirty(otherProp.serializedObject.targetObject);
                 return;
             }
@@ -135,7 +135,7 @@ namespace UnitySimplifiedEditor
                 {
                     targetProp.serializedObject.ApplyModifiedProperties();
                     targetProp.serializedObject.Update();
-                    targetOperand.Intialize(null, otherOperand.ValueType);
+                    targetOperand.Initialize(null, otherOperand.ValueType);
                     EditorUtility.SetDirty(targetProp.serializedObject.targetObject);
                     return;
                 }
@@ -144,7 +144,7 @@ namespace UnitySimplifiedEditor
                 {
                     otherProp.serializedObject.ApplyModifiedProperties();
                     otherProp.serializedObject.Update();
-                    otherOperand.Intialize(null, targetOperand.ValueType);
+                    otherOperand.Initialize(null, targetOperand.ValueType);
                     EditorUtility.SetDirty(otherProp.serializedObject.targetObject);
                     return;
                 }
@@ -154,7 +154,7 @@ namespace UnitySimplifiedEditor
                 {
                     otherProp.serializedObject.ApplyModifiedProperties();
                     otherProp.serializedObject.Update();
-                    otherOperand.Intialize(null, null);
+                    otherOperand.Initialize(null, null);
                     EditorUtility.SetDirty(otherProp.serializedObject.targetObject);
                 }
             }

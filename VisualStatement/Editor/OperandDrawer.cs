@@ -48,7 +48,7 @@ namespace UnitySimplifiedEditor
                 valuePathProp.stringValue = "";
                 property.serializedObject.ApplyModifiedProperties();
                 property.serializedObject.Update();
-                operand.Intialize(null, null);
+                operand.Initialize(null, null);
                 EditorUtility.SetDirty(property.serializedObject.targetObject);
             }
 
@@ -67,7 +67,7 @@ namespace UnitySimplifiedEditor
                         {
                             property.serializedObject.ApplyModifiedProperties();
                             property.serializedObject.Update();
-                            operand.Intialize(newValue, valueType);
+                            operand.Initialize(newValue, valueType);
                             EditorUtility.SetDirty(property.serializedObject.targetObject);
                         }
                         EditorGUI.EndProperty();
@@ -84,7 +84,7 @@ namespace UnitySimplifiedEditor
                         valuePathProp.stringValue = "";
                         property.serializedObject.ApplyModifiedProperties();
                         property.serializedObject.Update();
-                        operand.Intialize(null, null);
+                        operand.Initialize(null, null);
                         EditorUtility.SetDirty(property.serializedObject.targetObject);
                     }
                     #endregion
@@ -106,7 +106,7 @@ namespace UnitySimplifiedEditor
                             valuePathProp.stringValue = selection.MemberPath;
                             property.serializedObject.ApplyModifiedProperties();
                             property.serializedObject.Update();
-                            operand.Intialize(null, type);
+                            operand.Initialize(null, type);
                             EditorUtility.SetDirty(property.serializedObject.targetObject);
                         }
                     }

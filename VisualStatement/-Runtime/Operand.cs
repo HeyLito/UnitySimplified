@@ -121,7 +121,7 @@ namespace UnitySimplified
                 }
             }
 
-            public void Intialize(object value, Type valueType)
+            public void Initialize(object value, Type valueType)
             {
                 _memberObject = null;
                 _memberInfo = null;
@@ -143,15 +143,15 @@ namespace UnitySimplified
                         break;
 
                     case ReferenceType.Value:
-                        var newValue = valueType != null && value == null ? valueType.IsValueType && DataManagerUtility.IsSerializable(valueType) ? Activator.CreateInstance(valueType) : valueType == typeof(string) ? "" : value : value;
+                        var newValue = valueType != null && value == null ? valueType.IsValueType && SerializationUtility.IsSerializable(valueType) ? Activator.CreateInstance(valueType) : valueType == typeof(string) ? "" : value : value;
                         if (newValue != null && valueType != null && (newValue.GetType() == valueType || newValue.GetType().IsSubclassOf(valueType)))
                         {
                             _value = newValue;
                             _valueType = valueType;
                             this.valueType = valueType.AssemblyQualifiedName;
 
-                            if (DataManagerUtility.IsSerializable(valueType))
-                                DataManager.SaveObjectAsString(new DataTransfer(newValue), _binaryDataFormatter, out valueData);
+                            if (SerializationUtility.IsSerializable(valueType))
+                                DataManager.SaveObjectAsString(_binaryDataFormatter, new DataTransfer(newValue), out valueData);
                         }
 
                         if (valueType != null && valueType.IsSubclassOf(typeof(UnityObject)))
@@ -206,12 +206,12 @@ namespace UnitySimplified
 
                 if (_value == null)
                 {
-                    if (DataManagerUtility.IsSerializable(type))
+                    if (SerializationUtility.IsSerializable(type))
                     {
                         if (!string.IsNullOrEmpty(valueData))
                         {
                             var dataTransfer = new DataTransfer();
-                            DataManager.LoadObjectFromString(dataTransfer, _binaryDataFormatter, valueData);
+                            DataManager.LoadObjectFromString(_binaryDataFormatter, dataTransfer, valueData);
                             return _value = dataTransfer.value;
                         }
                     }
