@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using UnityEditor;
 
@@ -20,7 +21,7 @@ namespace UnitySimplifiedEditor
                     while (EditorApplication.isCompiling)
                         await Task.Delay(5);
 
-                    foreach (var callback in Callbacks)
+                    foreach (var callback in Callbacks.ToArray())
                         callback(importedAssets, deletedAssets, movedAssets, movedFromAssetPaths);
                     Callbacks.Clear();
                 });
@@ -39,7 +40,7 @@ namespace UnitySimplifiedEditor
                     return;
                 SingleArray[0] = assetName;
 
-                foreach (var callback in Callbacks)
+                foreach (var callback in Callbacks.ToArray())
                     callback(SingleArray, EmptyArray, EmptyArray, EmptyArray);
                 Callbacks.Clear();
             }

@@ -14,6 +14,7 @@ namespace UnitySimplified.GamePrefs
         private static ILookup<string, GamePrefData> _savedDataIdentifierLookup;
         private static ILookup<string, GamePrefData> _savedDataKeyLookup;
         private static bool _loaded;
+        private static FileDatabase _fileDatabase;
 
 
 
@@ -67,8 +68,9 @@ namespace UnitySimplified.GamePrefs
             _savedDataIdentifierLookup = null;
             _savedDataKeyLookup = null;
 
-            var fileDatabase = FileDatabase.GetDatabase(DataManager.DefaultPath);
-            fileDatabase.LoadFromFile("GamePrefs", _savedData);
+            if (!FileDatabase.TryGetDatabase(DataManager.DefaultPath, out _fileDatabase))
+                _fileDatabase = new FileDatabase(DataManager.DefaultPath);
+            _fileDatabase.LoadFromFile("GamePrefs", _savedData);
 
             _savedDataIdentifierLookup = _savedData.ToLookup(x => x.identifier);
             _savedDataKeyLookup = _savedData.ToLookup(x => x.key);
@@ -79,16 +81,15 @@ namespace UnitySimplified.GamePrefs
         private static void DoOverwrite()
         {
             string key = "GamePrefs";
-            FileDatabase fileDatabase = FileDatabase.GetDatabase(DataManager.DefaultPath);
-            if (!fileDatabase.SaveToFile("GamePrefs", _savedData))
+            if (!_fileDatabase.SaveToFile("GamePrefs", _savedData))
             {
                 //Find an solution for when newtonsoft is enabled after having existing saved data using the Binary data formatter.
 #if ENABLE_UNITYSIMPLIFIED_NEWTONSOFT
-                fileDatabase.CreateNewFile(new JsonDataFormatter(), _savedData, key, key);
+                _fileDatabase.CreateNewFile(new JsonDataFormatter(), _savedData, key, key);
 #else
-                fileDatabase.CreateNewFile(new BinaryDataFormatter(), _savedData, key, key);
+                _fileDatabase.CreateNewFile(new BinaryDataFormatter(), _savedData, key, key);
 #endif
-                fileDatabase.SaveDatabase();
+                _fileDatabase.SaveDatabase();
             }
             OnValuesChanged?.Invoke();
         }
