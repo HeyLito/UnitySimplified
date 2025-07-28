@@ -1,89 +1,49 @@
 ﻿#if UNITY_EDITOR
 
 using System.Linq;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
-using UnityEditorInternal;
 using UnitySimplified.RuntimeDatabases;
-using UnityObject = UnityEngine.Object;
 
 namespace UnitySimplifiedEditor.RuntimeDatabases
 {
     [CustomEditor(typeof(RuntimePrefabDatabase))]
     public class RuntimePrefabDatabaseEditor : Editor
     {
-        private RuntimePrefabDatabase _runtimePrefabDatabase;
-        private ReorderableList _itemsReorderableList;
-
-
-
-
-        protected void OnEnable()
+        private class EntryReorderableList : RuntimeDatabaseEditorUtility.EntryReorderableList<GameObject>
         {
-            _runtimePrefabDatabase = target as RuntimePrefabDatabase;
-            _itemsReorderableList = RuntimeDatabaseEditorUtility.ReorderableListTemplate(_runtimePrefabDatabase.Items, typeof(KeyValuePair<string, UnityObject>), "Identified Assets",
-                actionOnClear: () =>
-                {
-                    Undo.RecordObject(_runtimePrefabDatabase, "Clear");
-                    _runtimePrefabDatabase.Clear();
-                    ((ISerializationCallbackReceiver)_runtimePrefabDatabase.Items)?.OnBeforeSerialize();
-                    EditorUtility.SetDirty(_runtimePrefabDatabase);
-                },
-                actionOnRepopulate: () =>
-                {
-                    Undo.RecordObject(_runtimePrefabDatabase, "Repopulate");
-                    Repopulate();
-                    ((ISerializationCallbackReceiver)_runtimePrefabDatabase.Items)?.OnBeforeSerialize();
-                    EditorUtility.SetDirty(_runtimePrefabDatabase);
-                });
-            _itemsReorderableList.elementHeightCallback = (index) => EditorGUIUtility.singleLineHeight + 10;
-            _itemsReorderableList.drawElementCallback = (position, index, isActive, isFocused) =>
+            private readonly RuntimePrefabDatabase _runtimeDatabase;
+
+            public EntryReorderableList(RuntimePrefabDatabase runtimeDatabase, string label) : base(runtimeDatabase, label) => _runtimeDatabase = runtimeDatabase;
+
+            protected override void OnClear()
             {
-                KeyValuePair<string, GameObject> entry = (KeyValuePair<string, GameObject>)_runtimePrefabDatabase.Items[index];
-
-                Rect idRect = new(position) { x = position.x + 6, width = EditorGUIUtility.labelWidth + 30f };
-                Rect assetRect = new(position) { xMin = idRect.x + idRect.width + 6 };
-
-                if (position.Contains(Event.current.mousePosition) && Event.current.clickCount == 2)
-                    Selection.activeObject = entry.Value;
-
-                EditorGUI.LabelField(idRect, $"ID:<i>{entry.Key}</i>", RuntimeDatabaseEditorUtility.IDStyle);
-                if (entry.Value != null)
-                    EditorGUI.LabelField(assetRect, $"<b>{entry.Value.name}</b>", RuntimeDatabaseEditorUtility.UnityObjectStyle);
-                else EditorGUI.LabelField(assetRect, "NULL", RuntimeDatabaseEditorUtility.UnityObjectErrorStyle);
-            };
-            _itemsReorderableList.onRemoveCallback = (list) =>
+                Undo.RecordObject(_runtimeDatabase, "Clear");
+                _runtimeDatabase.Clear();
+            }
+            protected override void OnRepopulate()
             {
-                Undo.RecordObject(_runtimePrefabDatabase, "Remove");
-                List<string> keysToRemove = new();
-                for (int i = list.selectedIndices.Count - 1; i >= 0; i--)
-                    keysToRemove.Add(((KeyValuePair<string, GameObject>)_runtimePrefabDatabase.Items[list.selectedIndices[i]]).Key);
-                foreach (var key in keysToRemove)
-                    _runtimePrefabDatabase.TryRemove(key);
-                list.ClearSelection();
-                ((ISerializationCallbackReceiver)_runtimePrefabDatabase.Items)?.OnBeforeSerialize();
-                EditorUtility.SetDirty(_runtimePrefabDatabase);
-            };
+                Undo.RecordObject(_runtimeDatabase, "Repopulate");
+                foreach (var entry in _runtimeDatabase.Where(x => x.Equals(default(IRuntimeValueDatabase<GameObject>.Entry)) || string.IsNullOrWhiteSpace(x.Identifier) || x.Value == null).ToArray())
+                    _runtimeDatabase.TryRemove(entry.Identifier);
+                foreach (var asset in RuntimeDatabaseUtility.GetAssetsInDirectories(".prefab"))
+                    _runtimeDatabase.TryAdd((GameObject)asset);
+            }
+            protected override void OnRemoveIdentifier(string identifier) => _runtimeDatabase.TryRemove(identifier);
         }
+
+        private EntryReorderableList _list;
+
+        protected void OnEnable() => _list = new EntryReorderableList((RuntimePrefabDatabase)target, "Entries");
         public override void OnInspectorGUI()
         {
             EditorGUI.BeginChangeCheck();
-            _itemsReorderableList.DoLayoutList();
+            _list.LayoutList();
             if (!EditorGUI.EndChangeCheck())
                 return;
-            ((ISerializationCallbackReceiver)_runtimePrefabDatabase.Items)?.OnAfterDeserialize();
-            serializedObject.ApplyModifiedProperties();
-        }
 
-        private void Repopulate()
-        {
-            var items = new List<KeyValuePair<string, GameObject>>();
-            items.AddRange((IEnumerable<KeyValuePair<string, GameObject>>)_runtimePrefabDatabase.Items);
-            foreach (var item in items.Where(item => item.Equals(default) || item.Value == null))
-                _runtimePrefabDatabase.TryRemove(item.Key);
-            foreach (var asset in RuntimeDatabaseUtility.GetAssetsInDirectories(".prefab"))
-                _runtimePrefabDatabase.TryAdd((GameObject)asset);
+            serializedObject.ApplyModifiedProperties();
+            EditorUtility.SetDirty(serializedObject.targetObject);
         }
     }
 }

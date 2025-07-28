@@ -1,10 +1,13 @@
 #if UNITY_EDITOR
 
 using System;
-using System.Collections;
 using UnityEngine;
 using UnityEditor;
 using UnityEditorInternal;
+using System.Collections.Generic;
+using System.Linq;
+using UnitySimplified.RuntimeDatabases;
+using UnityObject = UnityEngine.Object;
 
 namespace UnitySimplifiedEditor.RuntimeDatabases
 {
@@ -80,31 +83,134 @@ namespace UnitySimplifiedEditor.RuntimeDatabases
             }
         }
 
-        public static ReorderableList ReorderableListTemplate(IList elements, Type elementsType, string headerText, Action actionOnClear = null, Action actionOnRepopulate = null) =>
-            new(elements, elementsType, true, true, false, true)
+        public abstract class EntryReorderableList<T> : SearchableReorderableList<IRuntimeValueDatabase<T>.Entry> where T : UnityObject
+        {
+            private readonly IRuntimeValueDatabase<T> _runtimeValueDatabase;
+            private bool _showIdentifiers;
+
+            protected EntryReorderableList(IRuntimeValueDatabase<T> runtimeValueDatabase, string label) : base(runtimeValueDatabase.Entries, label) => _runtimeValueDatabase = runtimeValueDatabase;
+
+            protected override void OnDrawElement(ReorderableList list, Rect rect, int index, bool active, bool focused)
             {
-                multiSelect = true,
-                drawHeaderCallback = position =>
+                IRuntimeValueDatabase<T>.Entry entry = List[index];
+
+                if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && Event.current.clickCount == 2 && rect.Contains(Event.current.mousePosition))
                 {
-                    EditorGUI.LabelField(position, headerText);
-
-                    GUIContent repopulateButtonContent = new("Repopulate");
-                    GUIContent clearButtonContent = new("Clear");
-
-                    float repopulateButtonWidth = EditorStyles.toolbarButton.CalcSize(repopulateButtonContent).x;
-                    float clearButtonWidth = EditorStyles.toolbarButton.CalcSize(clearButtonContent).x;
-
-                    Rect repopulateButtonRect = new(position)
-                        { x = position.x + position.width - repopulateButtonWidth, width = repopulateButtonWidth };
-                    Rect clearButtonRect = new(position)
-                        { x = repopulateButtonRect.x - clearButtonWidth, width = clearButtonWidth };
-
-                    if (GUI.Button(repopulateButtonRect, repopulateButtonContent, EditorStyles.toolbarButton))
-                        actionOnRepopulate?.Invoke();
-                    if (GUI.Button(clearButtonRect, clearButtonContent, EditorStyles.toolbarButton))
-                        actionOnClear?.Invoke();
+                    Undo.RecordObject(Selection.activeObject, "Select Object");
+                    Selection.activeObject = entry.Value;
                 }
-            };
+
+                if (_showIdentifiers)
+                {
+                    Rect idRect = new(rect) { x = rect.x + 6, width = EditorGUIUtility.labelWidth + 30f };
+                    Rect assetRect = new(rect) { xMin = idRect.x + idRect.width + 6 };
+
+                    EditorGUI.LabelField(idRect, $"ID:<i>{entry.Identifier}</i>", IDStyle);
+                    if (entry.Value != null)
+                        EditorGUI.LabelField(assetRect, $"<b>{entry.Value.name}</b>", UnityObjectStyle);
+                    else EditorGUI.LabelField(assetRect, "NULL", UnityObjectErrorStyle);
+                }
+                else
+                {
+                    Rect labelRect = new(rect) { xMin = rect.x + 6 };
+
+                    if (entry.Value != null)
+                        EditorGUI.LabelField(labelRect, $"<b>{entry.Value.name}</b>", UnityObjectStyle);
+                    else EditorGUI.LabelField(labelRect, "NULL", UnityObjectErrorStyle);
+                }
+            }
+            protected override string OnGetSearchValue(ReorderableList list, int index)
+            {
+                var entry = _runtimeValueDatabase.Entries[index];
+                return $"ID:{entry.Identifier}, PREFAB:{entry.Value}";
+            }
+            protected override void OnContextMenu(OptionAddItemCallbackDelegate optionAddItem, OptionAddItemDisabledCallbackDelegate optionAddItemDisabled, OptionAddSeparatorCallbackDelegate optionAddSeparator)
+            {
+                optionAddItem(new GUIContent("Clear"), false, OnClear);
+                optionAddItem(new GUIContent("Repopulate"), false, OnRepopulate);
+                optionAddItem(new GUIContent("Sort/Sort By Ascending"), false, SortByAscending);
+                optionAddItem(new GUIContent("Sort/Sort By Descending"), false, SortByDescending);
+                optionAddItem(new GUIContent("Show Identifiers"), _showIdentifiers, () => _showIdentifiers = !_showIdentifiers);
+            }
+            protected override void OnContextMenuElement(ReorderableList list, int[] indices, OptionAddItemCallbackDelegate optionAddItem, OptionAddItemDisabledCallbackDelegate optionAddItemDisabled, OptionAddSeparatorCallbackDelegate optionAddSeparator)
+            {
+                optionAddItem(new GUIContent("Remove"), false, () =>
+                {
+                    Undo.RecordObject((UnityObject)_runtimeValueDatabase, "Remove");
+                    foreach (var index in indices)
+                        OnRemoveIdentifier(List[index].Identifier);
+                    list.ClearSelection();
+                });
+                switch (indices.Length)
+                {
+                    case 0:
+                        return;
+                    case 1:
+                        optionAddItem(new GUIContent("Copy ID"), false, () => GUIUtility.systemCopyBuffer = List[indices[0]].Identifier);
+                        break;
+                    case > 1:
+                        {
+                            optionAddItem(new GUIContent("Copy IDs"), false, () =>
+                            {
+                                string value = indices.Aggregate("", (current, t) => current + List[t].Identifier + "\n");
+                                value = !string.IsNullOrWhiteSpace(value) ? value[..^1] : value;
+                                GUIUtility.systemCopyBuffer = value;
+                            });
+                            break;
+                        }
+                }
+            }
+            protected override void OnRemove(ReorderableList list)
+            {
+                Undo.RecordObject((UnityObject)_runtimeValueDatabase, "Remove");
+                foreach (var identifier in List.Where((_, index) => list.selectedIndices.ToList().Exists(x => x == index)).Select(x => x.Identifier).ToList())
+                    OnRemoveIdentifier(identifier);
+                list.ClearSelection();
+            }
+
+            private void SortByAscending()
+            {
+                int Sort(IRuntimeValueDatabase<T>.Entry lhs, IRuntimeValueDatabase<T>.Entry rhs)
+                {
+                    bool hasLhs = lhs.Value != null;
+                    bool hasRhs = rhs.Value != null;
+
+                    if (!hasLhs && !hasRhs)
+                        return 0;
+                    if (!hasLhs)
+                        return -1;
+                    if (!hasRhs)
+                        return 1;
+                    return string.Compare(lhs.Value.name, rhs.Value.name, StringComparison.Ordinal);
+                }
+
+                Undo.RecordObject((UnityObject)_runtimeValueDatabase, "Sort");
+                _runtimeValueDatabase.Entries.Sort(Comparer<IRuntimeValueDatabase<T>.Entry>.Create(Sort));
+            }
+            private void SortByDescending()
+            {
+                int Sort(IRuntimeValueDatabase<T>.Entry lhs, IRuntimeValueDatabase<T>.Entry rhs)
+                {
+                    bool hasLhs = lhs.Value != null;
+                    bool hasRhs = rhs.Value != null;
+
+                    if (!hasLhs && !hasRhs)
+                        return 0;
+                    if (!hasLhs)
+                        return 1;
+                    if (!hasRhs)
+                        return -1;
+                    return string.Compare(rhs.Value.name, lhs.Value.name, StringComparison.Ordinal);
+                }
+
+                Undo.RecordObject((UnityObject)_runtimeValueDatabase, "Sort");
+                _runtimeValueDatabase.Entries.Sort(Comparer<IRuntimeValueDatabase<T>.Entry>.Create(Sort));
+            }
+
+            protected abstract void OnClear();
+            protected abstract void OnRepopulate();
+            protected abstract void OnRemoveIdentifier(string identifier);
+        }
     }
 }
 
